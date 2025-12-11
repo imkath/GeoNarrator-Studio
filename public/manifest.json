@@ -1,0 +1,99 @@
+{
+  "name": "GeoNarrator Studio",
+  "short_name": "GeoNarrator",
+  "description": "Create stunning 3D map-based stories without writing code. A no-code scrollytelling editor powered by Mapbox GL.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "productivity",
+    "graphics & design",
+    "education",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/editor-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "GeoNarrator Studio Editor - Desktop View"
+    },
+    {
+      "src": "/screenshots/preview-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Story Preview Mode - Desktop View"
+    },
+    {
+      "src": "/screenshots/editor-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "GeoNarrator Studio Editor - Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Story",
+      "short_name": "New",
+      "description": "Create a new story project",
+      "url": "/?action=new",
+      "icons": [
+        {
+          "src": "/icons/new-story.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Import Project",
+      "short_name": "Import",
+      "description": "Import an existing project",
+      "url": "/?action=import",
+      "icons": [
+        {
+          "src": "/icons/import.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "iarc_rating_id": "",
+  "edge_side_panel": {
+    "preferred_width": 420
+  }
+}

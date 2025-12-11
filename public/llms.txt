@@ -1,0 +1,67 @@
+# GeoNarrator Studio - LLMs.txt
+# This file provides information for AI/LLM crawlers about this website.
+# Learn more: https://llmstxt.org/
+
+## About GeoNarrator Studio
+
+GeoNarrator Studio is a no-code 3D scrollytelling map editor that enables users to create stunning, interactive map-based stories without writing any code.
+
+## Core Features
+
+- **3D Map Visualization**: Powered by Mapbox GL for beautiful, cinematic 3D maps
+- **Scrollytelling Editor**: Create scroll-driven narratives that guide users through geographic stories
+- **Drag-and-Drop Interface**: Intuitive scene management with visual drag-and-drop controls
+- **Cinematic Camera Controls**: Control zoom, tilt, rotation, and bearing for dramatic map perspectives
+- **Real-Time Preview**: Instantly preview your story as you build it
+- **No-Code Platform**: No programming knowledge required
+- **Export/Import**: Save and share projects as JSON files
+
+## Use Cases
+
+GeoNarrator Studio is ideal for:
+- Journalists creating data-driven geographic stories
+- Educators building interactive geography lessons
+- Travel bloggers documenting journeys with visual narratives
+- Historians presenting location-based historical content
+- Researchers visualizing geospatial data
+- Marketers creating location-based brand stories
+
+## Technical Stack
+
+- Next.js 14 (React Framework)
+- TypeScript
+- Mapbox GL JS (3D Maps)
+- Framer Motion (Animations)
+- Tailwind CSS (Styling)
+- Zustand (State Management)
+- DnD Kit (Drag and Drop)
+
+## How It Works
+
+1. **Create Scenes**: Add scenes/chapters to your story
+2. **Position Camera**: Use the visual controls to set the perfect map view
+3. **Write Narrative**: Add titles and descriptions for each scene
+4. **Preview**: Switch to preview mode to experience the scrollytelling
+5. **Export**: Save your project as JSON or publish online
+
+## API and Integration
+
+GeoNarrator Studio projects can be exported as JSON and integrated into:
+- Custom websites
+- React applications
+- Static site generators
+- CMS platforms
+
+## Contact
+
+- Website: https://geonarrator.studio
+- Twitter: @geonarrator
+- GitHub: github.com/geonarrator
+
+## License
+
+GeoNarrator Studio is open source and free to use for personal and commercial projects.
+
+## Keywords
+
+scrollytelling, mapbox, 3D maps, storytelling, geographic visualization, no-code, map editor, interactive maps, data visualization, journalism, narrative maps, story maps, map storytelling, geographic storytelling, visual storytelling, data journalism, interactive storytelling, map animation, cinematic maps, fly-through maps, location-based stories, geospatial visualization

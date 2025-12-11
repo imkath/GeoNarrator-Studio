@@ -1,0 +1,11 @@
+# GeoNarrator Studio Security Policy
+# https://securitytxt.org/
+
+Contact: mailto:security@geonarrator.studio
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en, es
+Canonical: https://geonarrator.studio/.well-known/security.txt
+Policy: https://geonarrator.studio/security-policy
+
+# We appreciate responsible disclosure of security vulnerabilities.
+# Please report any security issues to the contact email above.

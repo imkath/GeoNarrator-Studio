@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="globeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGradient)"/>
+
+  <!-- Globe -->
+  <g transform="translate(256, 256)">
+    <!-- Globe circle -->
+    <circle cx="0" cy="0" r="140" stroke="url(#globeGradient)" stroke-width="12" fill="none"/>
+
+    <!-- Horizontal ellipse -->
+    <ellipse cx="0" cy="0" rx="140" ry="50" stroke="url(#globeGradient)" stroke-width="12" fill="none"/>
+
+    <!-- Vertical arc -->
+    <path d="M0 -140 C35 -140 55 -70 55 0 C55 70 35 140 0 140 C-35 140 -55 70 -55 0 C-55 -70 -35 -140 0 -140" stroke="url(#globeGradient)" stroke-width="12" fill="none"/>
+
+    <!-- Location pin -->
+    <circle cx="60" cy="-60" r="28" fill="#f472b6"/>
+    <circle cx="60" cy="-60" r="12" fill="white"/>
+  </g>
+</svg>
