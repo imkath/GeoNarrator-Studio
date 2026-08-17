@@ -78,6 +78,9 @@ interface StoryState {
   getSelectedChapter: () => Chapter | undefined;
 }
 
+/** Scenes that ship with the app. User-made scenes get a generated id. */
+const DEMO_CHAPTER_IDS = new Set(INITIAL_CHAPTERS.map(ch => ch.id));
+
 const getInitialState = () => ({
   chapters: INITIAL_CHAPTERS,
   layers: [] as DataLayer[],
@@ -97,6 +100,41 @@ const getInitialState = () => ({
   lastSaved: null,
   hasUnsavedChanges: false,
 });
+
+type PersistedSlice = Pick<
+  StoryState,
+  'chapters' | 'layers' | 'mapStyle' | 'projectName' | 'lastSaved'
+>;
+
+/**
+ * A session stored before the demo project got satellite and a tilted camera
+ * keeps showing the old flat map: what is persisted wins over the defaults in
+ * the code. Refresh it, but only while it is still the untouched demo, since
+ * anything the user made has to survive a version bump.
+ */
+export function migrateStoredState(persisted: unknown): PersistedSlice {
+  const state = (persisted ?? {}) as Partial<PersistedSlice>;
+
+  const isPristineDemo =
+    Array.isArray(state.chapters) &&
+    state.chapters.length > 0 &&
+    state.chapters.every(ch => DEMO_CHAPTER_IDS.has(ch.id));
+
+  if (isPristineDemo) {
+    const { chapters, layers, mapStyle, projectName, lastSaved } = getInitialState();
+    // Only the persisted slice: handing back the whole initial state would also
+    // reset `isMapLoaded`, and rehydration lands after the map's load event.
+    return { chapters, layers, mapStyle, projectName, lastSaved };
+  }
+
+  return {
+    ...getInitialState(),
+    ...state,
+    // Sessions stored before layers existed rehydrate without the field, which
+    // would leave `layers` undefined and crash every consumer.
+    layers: state.layers ?? [],
+  };
+}
 
 export const useStoryStore = create<StoryState>()(
   persist(
@@ -313,7 +351,7 @@ export const useStoryStore = create<StoryState>()(
     }),
     {
       name: 'geonarrator-storage',
-      version: 2,
+      version: 3,
       partialize: (state) => ({
         chapters: state.chapters,
         layers: state.layers,
@@ -321,12 +359,7 @@ export const useStoryStore = create<StoryState>()(
         projectName: state.projectName,
         lastSaved: state.lastSaved,
       }),
-      // Sessions stored before layers existed rehydrate without the field,
-      // which would leave `layers` undefined and crash every consumer.
-      migrate: (persisted) => ({
-        ...(persisted as object),
-        layers: (persisted as { layers?: DataLayer[] }).layers ?? [],
-      }),
+      migrate: migrateStoredState,
     }
   )
 );

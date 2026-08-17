@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useStoryStore, type ProjectData } from './useStoryStore';
+import { migrateStoredState, useStoryStore, type ProjectData } from './useStoryStore';
 import type { DataLayer } from '@/types';
 
 const store = () => useStoryStore.getState();
@@ -207,5 +207,35 @@ describe('capas de datos', () => {
 
     expect(store().loadProject(legacy).success).toBe(true);
     expect(store().layers).toEqual([]);
+  });
+});
+
+describe('migrateStoredState', () => {
+  it('refreshes a stored demo that predates the 3D camera and satellite style', () => {
+    const stale = {
+      mapStyle: 'streets',
+      chapters: store().chapters.map(ch => ({ ...ch, pitch: 0, bearing: 0, zoom: 4 })),
+    };
+
+    const migrated = migrateStoredState(stale);
+
+    expect(migrated.mapStyle).toBe('satellite');
+    expect(migrated.chapters[0].pitch).toBeGreaterThan(0);
+  });
+
+  it('leaves a project the user actually worked on alone', () => {
+    store().addChapter();
+    store().updateChapter(store().selectedChapterId, { title: 'Mine' });
+    const mine = { chapters: store().chapters, mapStyle: 'streets' as const, layers: [] };
+
+    const migrated = migrateStoredState(mine);
+
+    expect(migrated.mapStyle).toBe('streets');
+    expect(migrated.chapters).toEqual(mine.chapters);
+  });
+
+  it('backfills layers for sessions stored before they existed', () => {
+    const legacy = { chapters: [{ ...store().chapters[0], id: 'chapter-1' }] };
+    expect(migrateStoredState(legacy).layers).toEqual([]);
   });
 });
