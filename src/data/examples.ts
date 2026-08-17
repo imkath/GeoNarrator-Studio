@@ -55,7 +55,7 @@ export const EXAMPLES: Example[] = [
     id: 'chile',
     name: 'La geografía de los extremos',
     description: 'Tres paradas en Chile, del desierto a la Patagonia. El proyecto con el que abre el editor.',
-    mapStyle: 'dark',
+    mapStyle: 'satellite',
     chapters: INITIAL_CHAPTERS,
   },
   {

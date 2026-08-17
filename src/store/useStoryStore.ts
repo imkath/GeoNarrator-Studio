@@ -85,7 +85,7 @@ const getInitialState = () => ({
   selectedChapterId: INITIAL_CHAPTERS[0].id,
   mode: 'edit' as EditorMode,
   isMapLoaded: false,
-  mapStyle: 'dark' as MapStyle,
+  mapStyle: 'satellite' as MapStyle,
   currentCamera: {
     longitude: INITIAL_CHAPTERS[0].longitude,
     latitude: INITIAL_CHAPTERS[0].latitude,

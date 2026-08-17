@@ -139,6 +139,16 @@ export default function EmbedStory() {
         </Map>
       </div>
 
+      {/* Solo se atenúa la banda del texto: el mapa es lo que se vino a ver. */}
+      <div
+        className="absolute inset-0 z-[5] pointer-events-none bg-gradient-to-r from-slate-950/85 via-slate-950/25 to-transparent"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-32 z-[5] pointer-events-none bg-gradient-to-t from-slate-950/70 to-transparent"
+        aria-hidden="true"
+      />
+
       <div className="absolute top-0 left-0 right-0 h-1 bg-black/20 z-20">
         <motion.div
           className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"

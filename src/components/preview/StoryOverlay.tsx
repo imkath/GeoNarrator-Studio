@@ -90,6 +90,23 @@ export default function StoryOverlay() {
   }, [chapters, setActiveChapterId]);
 
   return (
+    <>
+      {/* La landing oscurece el mapa entero porque ahí es decorado. Aquí el
+          mapa es el contenido, así que solo se atenúa la banda donde va el
+          texto y los bordes donde viven los controles. */}
+      <div
+        className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-r from-slate-950/85 via-slate-950/25 to-transparent sm:to-transparent"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-40 z-20 pointer-events-none bg-gradient-to-t from-slate-950/80 to-transparent"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-24 z-20 pointer-events-none bg-gradient-to-b from-slate-950/60 to-transparent"
+        aria-hidden="true"
+      />
+
     <motion.div
       ref={containerRef}
       initial={{ opacity: 0 }}
@@ -310,5 +327,6 @@ export default function StoryOverlay() {
         </div>
       </nav>
     </motion.div>
+    </>
   );
 }
