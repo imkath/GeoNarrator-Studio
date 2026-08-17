@@ -181,7 +181,6 @@ export default function LandingPage() {
   const heroOpacity = useTransform(heroProgress, [0, 0.8], [1, 0]);
   const heroScale = useTransform(heroProgress, [0, 0.8], [1, 0.95]);
 
-  // Setup map terrain and fog
   const handleMapLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
@@ -225,7 +224,6 @@ export default function LandingPage() {
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Start animation
     animationRef.current = requestAnimationFrame(animate);
 
     return () => {
@@ -266,7 +264,6 @@ export default function LandingPage() {
     return () => observer.disconnect();
   }, [mapLoaded, inDemoSection]);
 
-  // Fly to scene when it becomes active
   const flyToScene = useCallback((scene: typeof DEMO_SCENES[0]) => {
     if (!mapRef.current || !mapLoaded) return;
 
@@ -280,7 +277,6 @@ export default function LandingPage() {
     });
   }, [mapLoaded]);
 
-  // Intersection Observer for demo scenes
   useEffect(() => {
     if (!mapLoaded) return;
 
@@ -311,18 +307,19 @@ export default function LandingPage() {
     };
   }, [mapLoaded, flyToScene]);
 
-  if (!MAPBOX_TOKEN) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-red-400">Mapbox token not configured</p>
-      </div>
-    );
-  }
-
   return (
     <div className="relative bg-slate-950">
-      {/* Fixed Map Background */}
       <div className="fixed inset-0 z-0">
+        {/* Bailing out of the whole component here would leave the useScroll
+            target ref unmounted and throw; only the map is swapped. */}
+        {!MAPBOX_TOKEN ? (
+          <div className="w-full h-full flex items-center justify-center bg-slate-950">
+            <p className="text-sm text-slate-400 max-w-md text-center px-8">
+              Set <code className="text-indigo-400">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
+              <code className="text-indigo-400"> .env.local</code> to load the map.
+            </p>
+          </div>
+        ) : (
         <Map
           ref={mapRef}
           mapboxAccessToken={MAPBOX_TOKEN}
@@ -339,13 +336,13 @@ export default function LandingPage() {
           onLoad={handleMapLoad}
           interactive={false}
         />
+        )}
         {/* Gradient overlay - stronger for text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/30 to-slate-950" />
         {/* Center vignette for hero text */}
         <div className="absolute inset-0 bg-radial-[ellipse_at_center] from-slate-950/60 via-transparent to-transparent" />
       </div>
 
-      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/60 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -367,9 +364,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Content */}
       <div className="relative z-10">
-        {/* Hero Section */}
         <section ref={heroRef} className="relative min-h-screen flex items-center justify-center">
           <motion.div
             style={{ opacity: heroOpacity, scale: heroScale }}
@@ -421,7 +416,6 @@ export default function LandingPage() {
             </motion.div>
           </motion.div>
 
-          {/* Scroll hint */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -442,7 +436,6 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        {/* Demo Scrollytelling Section */}
         <section ref={demoRef} className="relative">
           {/* Intro text - separate section that scrolls away */}
           <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -470,7 +463,6 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          {/* Scene cards - each takes significant vertical space */}
           <div className="max-w-xl mx-auto px-4 sm:px-6">
             {DEMO_SCENES.map((scene, index) => (
               <div
@@ -488,7 +480,6 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* End message */}
           <div className="min-h-[60vh] flex items-center justify-center px-4">
             <motion.div
               initial={{ opacity: 0, y: 40 }}
@@ -519,7 +510,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Use Cases Section */}
         <section className="relative py-32 bg-slate-950/90 backdrop-blur-xl">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <motion.p
@@ -560,7 +550,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
         <section className="relative py-32 sm:py-48">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <motion.h2
@@ -588,7 +577,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Minimal Footer */}
         <footer className="relative py-8 border-t border-white/5 bg-slate-950/80 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
