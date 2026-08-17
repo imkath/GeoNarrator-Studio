@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Chapter, EditorMode, CameraState } from '@/types';
+import { Chapter, DataLayer, EditorMode, CameraState, LayerStyle } from '@/types';
+import { INITIAL_CHAPTERS } from '@/data/examples';
 
 export type MapStyle = 'dark' | 'satellite' | 'streets' | 'outdoors' | 'light';
 
@@ -18,31 +19,33 @@ export const VALIDATION = {
   TITLE_MIN_LENGTH: 1,
 };
 
+export const PROJECT_VERSION = '1.1.0';
+
 export interface ProjectData {
   chapters: Chapter[];
   mapStyle: MapStyle;
   version: string;
   exportedAt: string;
+  /** Optional: projects exported before layers existed do not carry them. */
+  layers?: DataLayer[];
+  projectName?: string;
 }
 
 interface StoryState {
-  // Data
   chapters: Chapter[];
+  layers: DataLayer[];
   activeChapterId: string;
   selectedChapterId: string;
   mode: EditorMode;
 
-  // Map state
   isMapLoaded: boolean;
   currentCamera: CameraState;
   mapStyle: MapStyle;
 
-  // Project metadata
   projectName: string;
   lastSaved: string | null;
   hasUnsavedChanges: boolean;
 
-  // Actions
   setMode: (mode: EditorMode) => void;
   setActiveChapterId: (id: string) => void;
   setSelectedChapterId: (id: string) => void;
@@ -50,60 +53,34 @@ interface StoryState {
   setCurrentCamera: (camera: CameraState) => void;
   setMapStyle: (style: MapStyle) => void;
 
-  // Chapter CRUD
   addChapter: () => void;
   updateChapter: (id: string, updates: Partial<Chapter>) => void;
   deleteChapter: (id: string) => void;
   reorderChapters: (chapters: Chapter[]) => void;
   captureCurrentView: () => void;
 
-  // Project management
+  addLayer: (layer: DataLayer) => void;
+  removeLayer: (id: string) => void;
+  updateLayerStyle: (id: string, style: Partial<LayerStyle>) => void;
+  renameLayer: (id: string, name: string) => void;
+  toggleLayerInChapter: (chapterId: string, layerId: string) => void;
+  isLayerVisibleIn: (chapter: Chapter, layerId: string) => boolean;
+  layersVisibleIn: (chapter: Chapter | undefined) => DataLayer[];
+
   saveProject: () => void;
   loadProject: (data: ProjectData) => { success: boolean; error?: string };
   exportProject: () => ProjectData;
   resetToDefault: () => void;
+  loadExample: (chapters: Chapter[], mapStyle: MapStyle, name: string) => void;
   setProjectName: (name: string) => void;
 
-  // Computed
   getActiveChapter: () => Chapter | undefined;
   getSelectedChapter: () => Chapter | undefined;
 }
 
-const INITIAL_CHAPTERS: Chapter[] = [
-  {
-    id: 'intro',
-    title: 'La Geografía de los Extremos',
-    content: 'Chile es una larga y angosta faja de tierra. Vista desde el espacio, parece un borde delgado entre la cordillera y el mar. Esta herramienta permite narrar su geografía sin escribir una sola línea de código.',
-    longitude: -70.6693,
-    latitude: -33.4489,
-    zoom: 4,
-    pitch: 0,
-    bearing: 0
-  },
-  {
-    id: 'atacama',
-    title: 'El Desierto de Atacama',
-    content: 'Al norte, el desierto más árido del mundo. Aquí usamos una inclinación de cámara (pitch) para apreciar la vastedad de la planicie desértica y la ausencia total de vegetación.',
-    longitude: -68.5,
-    latitude: -23.5,
-    zoom: 8.5,
-    pitch: 60,
-    bearing: -20
-  },
-  {
-    id: 'torres',
-    title: 'Torres del Paine',
-    content: 'En el sur profundo, el granito se eleva verticalmente. La rotación de la cámara nos permite enfrentar las torres directamente, simulando un vuelo de dron sobre el parque nacional.',
-    longitude: -72.9,
-    latitude: -50.9423,
-    zoom: 10,
-    pitch: 75,
-    bearing: 45
-  }
-];
-
 const getInitialState = () => ({
   chapters: INITIAL_CHAPTERS,
+  layers: [] as DataLayer[],
   activeChapterId: INITIAL_CHAPTERS[0].id,
   selectedChapterId: INITIAL_CHAPTERS[0].id,
   mode: 'edit' as EditorMode,
@@ -116,7 +93,7 @@ const getInitialState = () => ({
     pitch: INITIAL_CHAPTERS[0].pitch,
     bearing: INITIAL_CHAPTERS[0].bearing,
   },
-  projectName: 'Untitled Project',
+  projectName: 'La geografía de los extremos',
   lastSaved: null,
   hasUnsavedChanges: false,
 });
@@ -146,7 +123,8 @@ export const useStoryStore = create<StoryState>()(
           latitude: currentChapter.latitude + 0.5,
           zoom: currentChapter.zoom,
           pitch: currentChapter.pitch,
-          bearing: currentChapter.bearing
+          bearing: currentChapter.bearing,
+          visibleLayerIds: currentChapter.visibleLayerIds,
         };
 
         set({
@@ -191,6 +169,67 @@ export const useStoryStore = create<StoryState>()(
         }));
       },
 
+      addLayer: (layer) => {
+        set(state => ({ layers: [...state.layers, layer], hasUnsavedChanges: true }));
+      },
+
+      removeLayer: (id) => {
+        set(state => ({
+          layers: state.layers.filter(l => l.id !== id),
+          // Drop the id from every scene, otherwise a deleted layer keeps
+          // narrowing which layers a scene shows.
+          chapters: state.chapters.map(ch =>
+            ch.visibleLayerIds
+              ? { ...ch, visibleLayerIds: ch.visibleLayerIds.filter(l => l !== id) }
+              : ch
+          ),
+          hasUnsavedChanges: true,
+        }));
+      },
+
+      updateLayerStyle: (id, style) => {
+        set(state => ({
+          layers: state.layers.map(l =>
+            l.id === id ? { ...l, style: { ...l.style, ...style } } : l
+          ),
+          hasUnsavedChanges: true,
+        }));
+      },
+
+      renameLayer: (id, name) => {
+        set(state => ({
+          layers: state.layers.map(l => (l.id === id ? { ...l, name } : l)),
+          hasUnsavedChanges: true,
+        }));
+      },
+
+      toggleLayerInChapter: (chapterId, layerId) => {
+        const { layers } = get();
+        set(state => ({
+          chapters: state.chapters.map(ch => {
+            if (ch.id !== chapterId) return ch;
+            // Undefined means "all visible", so the first toggle has to start
+            // from the full list and remove one, not from an empty list.
+            const current = ch.visibleLayerIds ?? layers.map(l => l.id);
+            const next = current.includes(layerId)
+              ? current.filter(id => id !== layerId)
+              : [...current, layerId];
+            return { ...ch, visibleLayerIds: next };
+          }),
+          hasUnsavedChanges: true,
+        }));
+      },
+
+      isLayerVisibleIn: (chapter, layerId) =>
+        chapter.visibleLayerIds === undefined || chapter.visibleLayerIds.includes(layerId),
+
+      layersVisibleIn: (chapter) => {
+        const { layers } = get();
+        if (!chapter) return [];
+        if (chapter.visibleLayerIds === undefined) return layers;
+        return layers.filter(l => chapter.visibleLayerIds!.includes(l.id));
+      },
+
       saveProject: () => {
         const timestamp = new Date().toISOString();
         set({ lastSaved: timestamp, hasUnsavedChanges: false });
@@ -212,7 +251,9 @@ export const useStoryStore = create<StoryState>()(
 
           set({
             chapters: data.chapters,
+            layers: Array.isArray(data.layers) ? data.layers : [],
             mapStyle: data.mapStyle || 'dark',
+            projectName: data.projectName || 'Untitled Project',
             selectedChapterId: data.chapters[0].id,
             activeChapterId: data.chapters[0].id,
             hasUnsavedChanges: false,
@@ -226,11 +267,13 @@ export const useStoryStore = create<StoryState>()(
       },
 
       exportProject: () => {
-        const { chapters, mapStyle } = get();
+        const { chapters, mapStyle, layers, projectName } = get();
         return {
           chapters,
+          layers,
+          projectName,
           mapStyle,
-          version: '1.0.0',
+          version: PROJECT_VERSION,
           exportedAt: new Date().toISOString(),
         };
       },
@@ -238,7 +281,21 @@ export const useStoryStore = create<StoryState>()(
       resetToDefault: () => {
         set({
           ...getInitialState(),
-          isMapLoaded: get().isMapLoaded, // Keep map loaded state
+          isMapLoaded: get().isMapLoaded,
+        });
+      },
+
+      loadExample: (chapters, mapStyle, name) => {
+        set({
+          chapters,
+          layers: [],
+          mapStyle,
+          projectName: name,
+          selectedChapterId: chapters[0].id,
+          activeChapterId: chapters[0].id,
+          mode: 'edit',
+          hasUnsavedChanges: false,
+          lastSaved: null,
         });
       },
 
@@ -256,11 +313,19 @@ export const useStoryStore = create<StoryState>()(
     }),
     {
       name: 'geonarrator-storage',
+      version: 2,
       partialize: (state) => ({
         chapters: state.chapters,
+        layers: state.layers,
         mapStyle: state.mapStyle,
         projectName: state.projectName,
         lastSaved: state.lastSaved,
+      }),
+      // Sessions stored before layers existed rehydrate without the field,
+      // which would leave `layers` undefined and crash every consumer.
+      migrate: (persisted) => ({
+        ...(persisted as object),
+        layers: (persisted as { layers?: DataLayer[] }).layers ?? [],
       }),
     }
   )

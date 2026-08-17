@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useStoryStore, type ProjectData } from './useStoryStore';
+import type { DataLayer } from '@/types';
 
 const store = () => useStoryStore.getState();
 
@@ -120,5 +121,91 @@ describe('exportProject', () => {
     expect(data.chapters).toEqual(store().chapters);
     expect(data.mapStyle).toBe(store().mapStyle);
     expect(() => new Date(data.exportedAt).toISOString()).not.toThrow();
+  });
+});
+
+describe('capas de datos', () => {
+  const layer = (id: string): DataLayer => ({
+    id,
+    name: id,
+    collection: { type: 'FeatureCollection', features: [] },
+    style: { color: '#6366f1', opacity: 0.7, rampFrom: '#312e81', rampTo: '#a5b4fc' },
+    geometryKinds: ['Point'],
+    numericProperties: {},
+    featureCount: 0,
+  });
+
+  beforeEach(() => {
+    store().resetToDefault();
+  });
+
+  it('starts with no layers and every scene showing all of them', () => {
+    expect(store().layers).toEqual([]);
+    store().addLayer(layer('a'));
+    expect(store().layersVisibleIn(store().getSelectedChapter())).toHaveLength(1);
+  });
+
+  it('hides a layer in one scene without touching the others', () => {
+    store().addLayer(layer('a'));
+    store().addLayer(layer('b'));
+    const [first, second] = store().chapters;
+
+    store().toggleLayerInChapter(first.id, 'a');
+
+    expect(store().layersVisibleIn(store().chapters[0]).map(l => l.id)).toEqual(['b']);
+    expect(store().layersVisibleIn(store().chapters[1]).map(l => l.id)).toEqual(['a', 'b']);
+    expect(second.id).toBeDefined();
+  });
+
+  it('brings a hidden layer back', () => {
+    store().addLayer(layer('a'));
+    const [first] = store().chapters;
+
+    store().toggleLayerInChapter(first.id, 'a');
+    store().toggleLayerInChapter(first.id, 'a');
+
+    expect(store().isLayerVisibleIn(store().chapters[0], 'a')).toBe(true);
+  });
+
+  it('forgets a deleted layer in every scene that had singled it out', () => {
+    store().addLayer(layer('a'));
+    store().addLayer(layer('b'));
+    store().toggleLayerInChapter(store().chapters[0].id, 'a');
+
+    store().removeLayer('a');
+
+    expect(store().layers.map(l => l.id)).toEqual(['b']);
+    expect(store().chapters[0].visibleLayerIds).toEqual(['b']);
+  });
+
+  it('updates a style without replacing the rest of it', () => {
+    store().addLayer(layer('a'));
+
+    store().updateLayerStyle('a', { property: 'poblacion', range: { min: 0, max: 10 } });
+
+    expect(store().layers[0].style).toMatchObject({
+      color: '#6366f1',
+      opacity: 0.7,
+      property: 'poblacion',
+    });
+  });
+
+  it('carries layers through export and import', () => {
+    store().addLayer(layer('a'));
+    const exported = store().exportProject();
+
+    store().resetToDefault();
+    expect(store().layers).toEqual([]);
+    store().loadProject(exported);
+
+    expect(store().layers.map(l => l.id)).toEqual(['a']);
+  });
+
+  it('accepts a project exported before layers existed', () => {
+    const legacy = { ...store().exportProject() };
+    delete (legacy as { layers?: unknown }).layers;
+
+    expect(store().loadProject(legacy).success).toBe(true);
+    expect(store().layers).toEqual([]);
   });
 });
