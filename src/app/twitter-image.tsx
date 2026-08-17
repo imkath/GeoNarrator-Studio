@@ -1,6 +1,5 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
 
 export const alt = 'GeoNarrator Studio - Create 3D map stories without code';
 export const size = {

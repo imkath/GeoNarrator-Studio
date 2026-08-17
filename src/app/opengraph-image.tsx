@@ -1,6 +1,5 @@
 import { ImageResponse } from 'next/og';
 
-export const runtime = 'edge';
 
 export const alt = 'GeoNarrator Studio - 3D Scrollytelling Map Editor';
 export const size = {
