@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import GeoNarratorStudio from '@/components/GeoNarratorStudio';
+import EditorClient from '@/components/EditorClient';
 
 export const metadata: Metadata = {
   title: 'Editor',
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function EditorPage() {
-  return <GeoNarratorStudio />;
+  return <EditorClient />;
 }
