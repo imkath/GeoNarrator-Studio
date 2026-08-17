@@ -78,9 +78,6 @@ interface StoryState {
   getSelectedChapter: () => Chapter | undefined;
 }
 
-/** Scenes that ship with the app. User-made scenes get a generated id. */
-const DEMO_CHAPTER_IDS = new Set(INITIAL_CHAPTERS.map(ch => ch.id));
-
 const getInitialState = () => ({
   chapters: INITIAL_CHAPTERS,
   layers: [] as DataLayer[],
@@ -107,29 +104,48 @@ type PersistedSlice = Pick<
 >;
 
 /**
- * A session stored before the demo project got satellite and a tilted camera
- * keeps showing the old flat map: what is persisted wins over the defaults in
- * the code. Refresh it, but only while it is still the untouched demo, since
- * anything the user made has to survive a version bump.
+ * The demo project exactly as older sessions stored it. Only the opening scene
+ * ever changed camera (4/0/0 became 4.4/45/-12), so the rest is still current.
+ * This has to stay a literal snapshot of the old shape, not a description of
+ * the new one: it is only ever compared against, never rendered.
+ */
+const LEGACY_DEMO_CHAPTERS: Chapter[] = INITIAL_CHAPTERS.map(ch =>
+  ch.id === 'intro' ? { ...ch, zoom: 4, pitch: 0, bearing: 0 } : ch
+);
+
+/** Style the app opened with before satellite became the default. */
+const LEGACY_DEFAULT_STYLE: MapStyle = 'dark';
+
+const sameChapters = (a: Chapter[] | undefined, b: Chapter[]) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Persisted state wins over the defaults in the code, so a session stored
+ * before the demo gained satellite and a tilted camera keeps showing the old
+ * flat map. Refresh it, but per field and only on an exact match with what the
+ * previous version wrote: an id in common is not evidence that a scene is
+ * untouched, and someone who picked a map style picked it on purpose.
  */
 export function migrateStoredState(persisted: unknown): PersistedSlice {
   const state = (persisted ?? {}) as Partial<PersistedSlice>;
+  const fresh = getInitialState();
 
-  const isPristineDemo =
-    Array.isArray(state.chapters) &&
-    state.chapters.length > 0 &&
-    state.chapters.every(ch => DEMO_CHAPTER_IDS.has(ch.id));
-
-  if (isPristineDemo) {
-    const { chapters, layers, mapStyle, projectName, lastSaved } = getInitialState();
-    // Only the persisted slice: handing back the whole initial state would also
-    // reset `isMapLoaded`, and rehydration lands after the map's load event.
-    return { chapters, layers, mapStyle, projectName, lastSaved };
-  }
+  // Layers only exist because the user loaded a file, which makes the project
+  // theirs no matter what the scenes still look like.
+  const isLegacyDemo =
+    (state.layers ?? []).length === 0 &&
+    sameChapters(state.chapters, LEGACY_DEMO_CHAPTERS);
 
   return {
-    ...getInitialState(),
+    ...fresh,
     ...state,
+    chapters: isLegacyDemo ? fresh.chapters : state.chapters ?? fresh.chapters,
+    // Only on the untouched demo, and only if the style is the one it shipped
+    // with. Picking dark on your own project has to survive.
+    mapStyle:
+      isLegacyDemo && state.mapStyle === LEGACY_DEFAULT_STYLE
+        ? fresh.mapStyle
+        : state.mapStyle ?? fresh.mapStyle,
     // Sessions stored before layers existed rehydrate without the field, which
     // would leave `layers` undefined and crash every consumer.
     layers: state.layers ?? [],
@@ -351,7 +367,10 @@ export const useStoryStore = create<StoryState>()(
     }),
     {
       name: 'geonarrator-storage',
-      version: 3,
+      // 4 rather than 3: version 3 shipped with a migration that matched on
+      // scene ids and wiped edits made to the demo. Comparing whole scenes is
+      // idempotent, so re-running it over an already migrated session is safe.
+      version: 4,
       partialize: (state) => ({
         chapters: state.chapters,
         layers: state.layers,

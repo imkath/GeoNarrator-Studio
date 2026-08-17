@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { migrateStoredState, useStoryStore, type ProjectData } from './useStoryStore';
+import { EXAMPLES } from '@/data/examples';
 import type { DataLayer } from '@/types';
 
 const store = () => useStoryStore.getState();
+
+const layerFixture = (id: string): DataLayer => ({
+  id,
+  name: id,
+  collection: { type: 'FeatureCollection', features: [] },
+  style: { color: '#6366f1', opacity: 0.7, rampFrom: '#312e81', rampTo: '#a5b4fc' },
+  geometryKinds: ['Point'],
+  numericProperties: {},
+  featureCount: 0,
+});
 
 beforeEach(() => {
   store().resetToDefault();
@@ -125,15 +136,7 @@ describe('exportProject', () => {
 });
 
 describe('capas de datos', () => {
-  const layer = (id: string): DataLayer => ({
-    id,
-    name: id,
-    collection: { type: 'FeatureCollection', features: [] },
-    style: { color: '#6366f1', opacity: 0.7, rampFrom: '#312e81', rampTo: '#a5b4fc' },
-    geometryKinds: ['Point'],
-    numericProperties: {},
-    featureCount: 0,
-  });
+  const layer = layerFixture;
 
   beforeEach(() => {
     store().resetToDefault();
@@ -211,31 +214,82 @@ describe('capas de datos', () => {
 });
 
 describe('migrateStoredState', () => {
-  it('refreshes a stored demo that predates the 3D camera and satellite style', () => {
-    const stale = {
-      mapStyle: 'streets',
-      chapters: store().chapters.map(ch => ({ ...ch, pitch: 0, bearing: 0, zoom: 4 })),
-    };
+  // What version 2 actually wrote: the demo, with a flat opening camera.
+  const legacyDemo = () =>
+    store().chapters.map(ch =>
+      ch.id === 'intro' ? { ...ch, zoom: 4, pitch: 0, bearing: 0 } : ch
+    );
 
-    const migrated = migrateStoredState(stale);
+  it('gives the untouched demo back its 3D camera and satellite style', () => {
+    const migrated = migrateStoredState({ chapters: legacyDemo(), mapStyle: 'dark' });
 
     expect(migrated.mapStyle).toBe('satellite');
-    expect(migrated.chapters[0].pitch).toBeGreaterThan(0);
+    expect(migrated.chapters[0]).toMatchObject({ zoom: 4.4, pitch: 45, bearing: -12 });
   });
 
-  it('leaves a project the user actually worked on alone', () => {
-    store().addChapter();
-    store().updateChapter(store().selectedChapterId, { title: 'Mine' });
-    const mine = { chapters: store().chapters, mapStyle: 'streets' as const, layers: [] };
-
-    const migrated = migrateStoredState(mine);
+  it('keeps a map style the user chose, while still fixing the camera', () => {
+    const migrated = migrateStoredState({ chapters: legacyDemo(), mapStyle: 'streets' });
 
     expect(migrated.mapStyle).toBe('streets');
-    expect(migrated.chapters).toEqual(mine.chapters);
+    expect(migrated.chapters[0].pitch).toBe(45);
+  });
+
+  it('leaves the demo alone once a single scene has been edited', () => {
+    const edited = legacyDemo();
+    edited[0] = { ...edited[0], title: 'Mi propia escena' };
+
+    const migrated = migrateStoredState({ chapters: edited, mapStyle: 'dark' });
+
+    expect(migrated.chapters).toEqual(edited);
+    expect(migrated.mapStyle).toBe('dark');
+  });
+
+  it('leaves the demo alone once the camera has been moved', () => {
+    const moved = legacyDemo();
+    moved[1] = { ...moved[1], zoom: 12.5 };
+
+    expect(migrateStoredState({ chapters: moved }).chapters).toEqual(moved);
+  });
+
+  it('treats a project with a loaded layer as the user\'s, scenes aside', () => {
+    const layers = [layerFixture('ferias')];
+
+    const migrated = migrateStoredState({ chapters: legacyDemo(), mapStyle: 'dark', layers });
+
+    expect(migrated.chapters[0].pitch).toBe(0);
+    expect(migrated.mapStyle).toBe('dark');
+    expect(migrated.layers).toEqual(layers);
+  });
+
+  it('leaves scenes the user created alone', () => {
+    store().addChapter();
+    const mine = store().chapters;
+
+    expect(migrateStoredState({ chapters: mine, mapStyle: 'streets' }).chapters).toEqual(mine);
+  });
+
+  it('leaves a loaded example alone', () => {
+    const santiago = EXAMPLES.find(e => e.id === 'santiago')!;
+
+    const migrated = migrateStoredState({
+      chapters: santiago.chapters,
+      mapStyle: santiago.mapStyle,
+    });
+
+    expect(migrated.chapters).toEqual(santiago.chapters);
+    expect(migrated.mapStyle).toBe('streets');
   });
 
   it('backfills layers for sessions stored before they existed', () => {
-    const legacy = { chapters: [{ ...store().chapters[0], id: 'chapter-1' }] };
-    expect(migrateStoredState(legacy).layers).toEqual([]);
+    expect(migrateStoredState({ chapters: legacyDemo() }).layers).toEqual([]);
+  });
+
+  it('runs twice without changing its own result', () => {
+    const once = migrateStoredState({ chapters: legacyDemo(), mapStyle: 'dark' });
+    expect(migrateStoredState(once)).toEqual(once);
+  });
+
+  it('falls back to the demo when there is nothing stored', () => {
+    expect(migrateStoredState(undefined).chapters).toEqual(store().chapters);
   });
 });
