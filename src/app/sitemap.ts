@@ -1,23 +1,9 @@
 import { MetadataRoute } from 'next';
-
-// Static URL - hardcoded for proper crawler indexing
-const SITE_URL = 'https://geonarrator.studio';
+import { SITE_URL } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-
   return [
-    {
-      url: SITE_URL,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 1,
-    },
-    {
-      url: `${SITE_URL}/editor`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
+    { url: SITE_URL, changeFrequency: 'monthly', priority: 1 },
+    { url: `${SITE_URL}/editor`, changeFrequency: 'monthly', priority: 0.9 },
   ];
 }
