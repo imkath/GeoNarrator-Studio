@@ -14,7 +14,6 @@ export default function NotFound() {
   return (
     <main className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        {/* 404 Number */}
         <div className="relative mb-8">
           <h1
             className="text-[150px] sm:text-[200px] font-black leading-none select-none"
@@ -26,7 +25,6 @@ export default function NotFound() {
           >
             404
           </h1>
-          {/* Globe icon overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <svg
               viewBox="0 0 24 24"
@@ -42,7 +40,6 @@ export default function NotFound() {
           </div>
         </div>
 
-        {/* Message */}
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
           Lost in the Map
         </h2>
@@ -51,7 +48,6 @@ export default function NotFound() {
           Let&apos;s navigate you back to familiar territory.
         </p>
 
-        {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/"
@@ -73,7 +69,6 @@ export default function NotFound() {
           </Link>
         </div>
 
-        {/* Help text */}
         <p className="mt-12 text-sm text-slate-600">
           Error 404 - Page not found
         </p>

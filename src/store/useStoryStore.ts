@@ -12,7 +12,6 @@ export const MAP_STYLES: { id: MapStyle; name: string; url: string }[] = [
   { id: 'light', name: 'Light', url: 'mapbox://styles/mapbox/light-v11' },
 ];
 
-// Validation constants
 export const VALIDATION = {
   TITLE_MAX_LENGTH: 100,
   CONTENT_MAX_LENGTH: 1000,
@@ -199,12 +198,10 @@ export const useStoryStore = create<StoryState>()(
 
       loadProject: (data: ProjectData) => {
         try {
-          // Validate data structure
           if (!data.chapters || !Array.isArray(data.chapters) || data.chapters.length === 0) {
             return { success: false, error: 'Invalid project: no chapters found' };
           }
 
-          // Validate each chapter has required fields
           for (const chapter of data.chapters) {
             if (!chapter.id || !chapter.title ||
                 typeof chapter.longitude !== 'number' ||

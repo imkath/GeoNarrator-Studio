@@ -48,7 +48,6 @@ function DeleteConfirmDialog({ chapterTitle, onConfirm, onCancel }: DeleteConfir
         className="bg-slate-900 border border-white/10 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-white/10">
           <div className="p-2 bg-red-500/20 rounded-lg">
             <AlertTriangle className="w-5 h-5 text-red-400" aria-hidden="true" />
@@ -66,14 +65,12 @@ function DeleteConfirmDialog({ chapterTitle, onConfirm, onCancel }: DeleteConfir
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-4">
           <p className="text-sm text-slate-300">
             Are you sure you want to delete <span className="font-semibold text-white">&quot;{chapterTitle}&quot;</span>?
           </p>
         </div>
 
-        {/* Actions */}
         <div className="p-4 border-t border-white/10 flex gap-2">
           <motion.button
             whileTap={{ scale: 0.98 }}
@@ -123,7 +120,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
 
   const is3D = chapter.pitch > 10;
 
-  // Combine refs
   const combinedRef = (node: HTMLDivElement | null) => {
     setNodeRef(node);
     if (typeof ref === 'function') {
@@ -157,7 +153,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
         }
       `}
     >
-      {/* Selection indicator */}
       <AnimatePresence>
         {isSelected && !isDragging && (
           <motion.div
@@ -171,7 +166,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
       </AnimatePresence>
 
       <div className="flex items-center gap-3">
-        {/* Drag handle */}
         <div
           {...attributes}
           {...listeners}
@@ -187,7 +181,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
           <GripVertical className="w-4 h-4" />
         </div>
 
-        {/* Chapter number */}
         <motion.div
           className={`
             flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold shrink-0 transition-all duration-300
@@ -202,7 +195,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
           {index + 1}
         </motion.div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className={`text-sm font-medium truncate transition-colors ${isSelected ? 'text-white' : 'text-slate-300'}`}>
             {chapter.title}
@@ -219,7 +211,6 @@ const SortableChapter = forwardRef<HTMLDivElement, SortableChapterProps>(
           </div>
         </div>
 
-        {/* Delete button */}
         {totalChapters > 1 && (
           <motion.button
             onClick={(e) => {
@@ -311,7 +302,6 @@ export default function ChapterList() {
           </SortableContext>
         </DndContext>
 
-        {/* Add new chapter button */}
         <motion.button
           onClick={addChapter}
           whileHover={{ scale: 1.01 }}
@@ -330,7 +320,6 @@ export default function ChapterList() {
         </motion.button>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AnimatePresence>
         {deleteConfirm && (
           <DeleteConfirmDialog

@@ -24,7 +24,6 @@ export default async function Image() {
           backgroundImage: 'radial-gradient(circle at 25% 25%, #1e1b4b 0%, transparent 50%), radial-gradient(circle at 75% 75%, #312e81 0%, transparent 50%)',
         }}
       >
-        {/* Globe Icon */}
         <div
           style={{
             display: 'flex',
@@ -54,7 +53,6 @@ export default async function Image() {
           </svg>
         </div>
 
-        {/* Title */}
         <div
           style={{
             display: 'flex',
@@ -84,7 +82,6 @@ export default async function Image() {
           </span>
         </div>
 
-        {/* Subtitle */}
         <div
           style={{
             display: 'flex',
@@ -120,7 +117,6 @@ export default async function Image() {
           />
         </div>
 
-        {/* Description */}
         <p
           style={{
             fontSize: 28,
@@ -134,7 +130,6 @@ export default async function Image() {
           Create stunning 3D map-based stories without writing code
         </p>
 
-        {/* Features */}
         <div
           style={{
             display: 'flex',
@@ -160,7 +155,6 @@ export default async function Image() {
           ))}
         </div>
 
-        {/* URL */}
         <p
           style={{
             position: 'absolute',

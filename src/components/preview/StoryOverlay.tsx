@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useStoryStore } from '@/store/useStoryStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MapPin, Home } from 'lucide-react';
 
 export default function StoryOverlay() {
@@ -13,7 +13,6 @@ export default function StoryOverlay() {
   const activeIndex = chapters.findIndex(c => c.id === activeChapterId);
   const progress = chapters.length > 1 ? (activeIndex / (chapters.length - 1)) * 100 : 100;
 
-  // Navigation functions
   const goToChapter = useCallback((index: number) => {
     if (index >= 0 && index < chapters.length) {
       const chapter = chapters[index];
@@ -40,7 +39,6 @@ export default function StoryOverlay() {
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [goToChapter]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') {
@@ -68,7 +66,6 @@ export default function StoryOverlay() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrev, goToStart, goToChapter, chapters.length]);
 
-  // Intersection Observer for scroll detection
   useEffect(() => {
     const options = {
       root: null,
@@ -103,7 +100,6 @@ export default function StoryOverlay() {
       role="region"
       aria-label="Story presentation"
     >
-      {/* Progress bar at top */}
       <div className="fixed top-16 left-0 right-0 z-50 pointer-events-none">
         <div className="h-1 bg-white/10">
           <motion.div
@@ -115,7 +111,6 @@ export default function StoryOverlay() {
         </div>
       </div>
 
-      {/* Navigation controls - Fixed bottom */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
         <motion.div
           initial={{ y: 100, opacity: 0 }}
@@ -123,7 +118,6 @@ export default function StoryOverlay() {
           transition={{ delay: 0.5 }}
           className="flex items-center gap-2 bg-black/70 backdrop-blur-xl rounded-2xl p-2 border border-white/10 shadow-2xl"
         >
-          {/* Home button */}
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -136,7 +130,6 @@ export default function StoryOverlay() {
 
           <div className="h-6 w-px bg-white/10" aria-hidden="true" />
 
-          {/* Previous */}
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -148,7 +141,6 @@ export default function StoryOverlay() {
             <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </motion.button>
 
-          {/* Scene counter */}
           <div className="px-4 py-2 min-w-[100px] text-center">
             <div className="text-sm font-bold text-white">
               {activeIndex + 1} <span className="text-slate-500 font-normal">of</span> {chapters.length}
@@ -158,7 +150,6 @@ export default function StoryOverlay() {
             </div>
           </div>
 
-          {/* Next */}
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -171,7 +162,6 @@ export default function StoryOverlay() {
           </motion.button>
         </motion.div>
 
-        {/* Keyboard hint */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -184,7 +174,6 @@ export default function StoryOverlay() {
         </motion.div>
       </div>
 
-      {/* Initial spacer with scroll indicator */}
       <div className="h-[50vh] flex items-end justify-center pb-16 pointer-events-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -202,7 +191,6 @@ export default function StoryOverlay() {
         </motion.div>
       </div>
 
-      {/* Story chapters */}
       {chapters.map((chapter, index) => {
         const isActive = activeChapterId === chapter.id;
 
@@ -221,21 +209,15 @@ export default function StoryOverlay() {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="pointer-events-auto max-w-xl w-full"
             >
-              {/* Card */}
               <div className="relative">
-                {/* Glow effect */}
                 <div className={`absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-xl transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
 
-                {/* Main card */}
                 <div className="relative bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-                  {/* Top accent line */}
                   <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent" aria-hidden="true" />
 
-                  {/* Left accent */}
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600" aria-hidden="true" />
 
                   <div className="p-6 sm:p-8 md:p-10">
-                    {/* Chapter indicator */}
                     <div className="flex items-center gap-3 mb-4 sm:mb-6">
                       <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30">
                         <span className="text-xs font-bold text-indigo-400" aria-hidden="true">{index + 1}</span>
@@ -248,7 +230,6 @@ export default function StoryOverlay() {
                       )}
                     </div>
 
-                    {/* Title */}
                     <h2
                       className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-white tracking-tight"
                       style={{
@@ -259,12 +240,10 @@ export default function StoryOverlay() {
                       {chapter.title}
                     </h2>
 
-                    {/* Content */}
                     <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-light">
                       {chapter.content}
                     </p>
 
-                    {/* Coordinates badge */}
                     <div className="mt-4 sm:mt-6 flex items-center gap-2 text-xs text-slate-500">
                       <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
                       <span className="font-mono">
@@ -279,7 +258,6 @@ export default function StoryOverlay() {
         );
       })}
 
-      {/* End spacer */}
       <div className="h-[50vh] flex items-center justify-center pointer-events-auto pb-24">
         <motion.div
           initial={{ opacity: 0 }}
@@ -298,7 +276,6 @@ export default function StoryOverlay() {
         </motion.div>
       </div>
 
-      {/* Progress indicators - Hidden on small mobile */}
       <nav
         className="fixed right-4 sm:right-8 top-1/2 -translate-y-1/2 z-40 pointer-events-auto hidden sm:block"
         aria-label="Scene navigation"
@@ -325,7 +302,6 @@ export default function StoryOverlay() {
                   animate={{ scale: isActive ? 1.3 : 1 }}
                 />
 
-                {/* Tooltip */}
                 <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap border border-white/10">
                     {chapter.title}

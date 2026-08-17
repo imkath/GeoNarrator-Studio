@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStoryStore, MAP_STYLES, VALIDATION } from '@/store/useStoryStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Layers,
   Sparkles,
@@ -27,7 +27,6 @@ export default function Sidebar() {
     setMapStyle,
   } = useStoryStore();
 
-  // Detect mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
@@ -48,7 +47,6 @@ export default function Sidebar() {
 
   if (!selectedChapter) return null;
 
-  // Validation
   const titleLength = selectedChapter.title.length;
   const contentLength = selectedChapter.content.length;
   const isTitleEmpty = titleLength === 0;
@@ -56,14 +54,12 @@ export default function Sidebar() {
   const isContentTooLong = contentLength > VALIDATION.CONTENT_MAX_LENGTH;
 
   const handleTitleChange = (value: string) => {
-    // Allow typing but enforce max length
     if (value.length <= VALIDATION.TITLE_MAX_LENGTH) {
       updateChapter(selectedChapterId, { title: value });
     }
   };
 
   const handleContentChange = (value: string) => {
-    // Allow typing but enforce max length
     if (value.length <= VALIDATION.CONTENT_MAX_LENGTH) {
       updateChapter(selectedChapterId, { content: value });
     }
@@ -89,7 +85,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile overlay backdrop */}
       {isMobile && !isCollapsed && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -113,7 +108,6 @@ export default function Sidebar() {
         role="complementary"
         aria-label="Scene editor"
       >
-        {/* Header - Fixed */}
         <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 flex-none">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -128,7 +122,6 @@ export default function Sidebar() {
               >
                 {selectedChapterIndex + 1}/{chapters.length}
               </motion.span>
-              {/* Close button for mobile */}
               {isMobile && (
                 <button
                   onClick={() => setIsCollapsed(true)}
@@ -142,11 +135,8 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Scrollable Content Area */}
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          {/* Form */}
           <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 border-b border-white/5">
-            {/* Title Input */}
             <div className="group">
               <div className="flex items-center justify-between mb-2">
                 <label
@@ -197,7 +187,6 @@ export default function Sidebar() {
               )}
             </div>
 
-            {/* Content Textarea */}
             <div className="group">
               <div className="flex items-center justify-between mb-2">
                 <label
@@ -232,13 +221,10 @@ export default function Sidebar() {
               )}
             </div>
 
-            {/* Location Search */}
             <LocationSearch />
 
-            {/* Camera Controls */}
             <CameraControls />
 
-            {/* Map Style Selector */}
             <div role="group" aria-labelledby="map-style-label">
               <label id="map-style-label" className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Map className="w-3 h-3" aria-hidden="true" />
@@ -276,7 +262,6 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Chapter List Section */}
           <div className="flex flex-col">
             <div className="px-4 sm:px-6 pt-4 pb-2 sticky top-0 bg-slate-950/95 backdrop-blur-sm z-10">
               <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
@@ -288,7 +273,6 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Custom scrollbar styles */}
         <style jsx global>{`
           .custom-scrollbar::-webkit-scrollbar {
             width: 6px;

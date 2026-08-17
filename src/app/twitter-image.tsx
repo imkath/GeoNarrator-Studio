@@ -24,7 +24,6 @@ export default async function Image() {
           backgroundImage: 'radial-gradient(circle at 25% 25%, #1e1b4b 0%, transparent 50%), radial-gradient(circle at 75% 75%, #312e81 0%, transparent 50%)',
         }}
       >
-        {/* Globe Icon */}
         <div
           style={{
             display: 'flex',
@@ -54,7 +53,6 @@ export default async function Image() {
           </svg>
         </div>
 
-        {/* Title */}
         <div
           style={{
             display: 'flex',
@@ -84,7 +82,6 @@ export default async function Image() {
           </span>
         </div>
 
-        {/* Tagline */}
         <p
           style={{
             fontSize: 24,
@@ -97,7 +94,6 @@ export default async function Image() {
           3D Scrollytelling Map Editor
         </p>
 
-        {/* Description */}
         <p
           style={{
             fontSize: 32,
