@@ -1,137 +1,107 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
+import type { MapRef } from 'react-map-gl/mapbox';
 import { Chapter } from '@/types';
-import { MapStyle, MAP_STYLES } from '@/store/useStoryStore';
+import { MAP_STYLES } from '@/store/useStoryStore';
+import { decodeStory } from '@/lib/story-codec';
 
-// Dynamic import for Map to avoid SSR issues
-const Map = dynamic(
-  () => import('react-map-gl/mapbox').then((mod) => mod.default),
-  { ssr: false }
-);
+const Map = dynamic(() => import('react-map-gl/mapbox').then((mod) => mod.default), {
+  ssr: false,
+});
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-interface EmbedData {
-  chapters: Chapter[];
-  mapStyle: MapStyle;
-}
+const Spinner = () => (
+  <motion.div
+    animate={{ rotate: 360 }}
+    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+    className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full"
+  />
+);
 
 function EmbedContent() {
   const searchParams = useSearchParams();
-  const mapRef = useRef<any>(null);
-  const [data, setData] = useState<EmbedData | null>(null);
+  const mapRef = useRef<MapRef>(null);
   const [activeChapterId, setActiveChapterId] = useState<string>('');
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Parse data from URL
-  useEffect(() => {
+  // Derived rather than state: decoding inside an effect forced a synchronous
+  // setState and an extra blank render.
+  const { data, error } = useMemo(() => {
     const dataParam = searchParams.get('data');
-    if (!dataParam) {
-      setError('No story data provided');
-      return;
-    }
-
+    if (!dataParam) return { data: null, error: 'This URL does not carry a story' };
     try {
-      const decoded = atob(dataParam);
-      const parsed = JSON.parse(decoded) as EmbedData;
-
-      if (!parsed.chapters || parsed.chapters.length === 0) {
-        setError('Invalid story data');
-        return;
-      }
-
-      setData(parsed);
-      setActiveChapterId(parsed.chapters[0].id);
-    } catch {
-      setError('Failed to load story data');
+      return { data: decodeStory(dataParam), error: null };
+    } catch (err) {
+      return { data: null, error: (err as Error).message };
     }
   }, [searchParams]);
 
-  // Setup map
   const handleMapLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    try {
+    if (!map.getSource('mapbox-dem')) {
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
         url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
         tileSize: 512,
         maxzoom: 14,
       });
-
       map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-
-      map.setFog({
-        range: [0.5, 10],
-        color: '#242B4B',
-        'horizon-blend': 0.3,
-        'high-color': '#add8e6',
-        'space-color': '#0b0c21',
-        'star-intensity': 0.8,
-      });
-    } catch {
-      // Source might already exist
     }
 
     setMapLoaded(true);
   }, []);
 
-  // Fly to chapter
-  const flyToChapter = useCallback((chapter: Chapter) => {
-    if (!mapRef.current || !mapLoaded) return;
+  const flyToChapter = useCallback(
+    (chapter: Chapter) => {
+      if (!mapRef.current || !mapLoaded) return;
+      mapRef.current.flyTo({
+        center: [chapter.longitude, chapter.latitude],
+        zoom: chapter.zoom,
+        pitch: chapter.pitch,
+        bearing: chapter.bearing,
+        duration: 3500,
+        essential: true,
+      });
+    },
+    [mapLoaded]
+  );
 
-    mapRef.current.flyTo({
-      center: [chapter.longitude, chapter.latitude],
-      zoom: chapter.zoom,
-      pitch: chapter.pitch,
-      bearing: chapter.bearing,
-      duration: 3500,
-      essential: true,
-    });
-  }, [mapLoaded]);
-
-  // Intersection Observer for chapters
+  // One observer for every scene instead of one observer per scene.
   useEffect(() => {
     if (!data || !mapLoaded) return;
 
-    const observers: IntersectionObserver[] = [];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const index = chapterRefs.current.indexOf(entry.target as HTMLDivElement);
+          const chapter = data.chapters[index];
+          if (!chapter) continue;
+          setActiveChapterId(chapter.id);
+          flyToChapter(chapter);
+        }
+      },
+      { rootMargin: '-50% 0px -50% 0px', threshold: 0 }
+    );
 
-    chapterRefs.current.forEach((ref, index) => {
-      if (!ref) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              const chapter = data.chapters[index];
-              setActiveChapterId(chapter.id);
-              flyToChapter(chapter);
-            }
-          });
-        },
-        { rootMargin: '-50% 0px -50% 0px', threshold: 0 }
-      );
-
-      observer.observe(ref);
-      observers.push(observer);
-    });
-
-    return () => {
-      observers.forEach((obs) => obs.disconnect());
-    };
+    for (const ref of chapterRefs.current) {
+      if (ref) observer.observe(ref);
+    }
+    return () => observer.disconnect();
   }, [data, mapLoaded, flyToChapter]);
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-red-400">{error}</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-8">
+        <p className="text-red-400 text-center">{error}</p>
       </div>
     );
   }
@@ -139,22 +109,22 @@ function EmbedContent() {
   if (!data || !MAPBOX_TOKEN) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full"
-        />
+        <Spinner />
       </div>
     );
   }
 
-  const currentStyleUrl = MAP_STYLES.find(s => s.id === data.mapStyle)?.url || MAP_STYLES[0].url;
-  const activeChapter = data.chapters.find(c => c.id === activeChapterId) || data.chapters[0];
-  const progress = ((data.chapters.findIndex(c => c.id === activeChapterId) + 1) / data.chapters.length) * 100;
+  const currentStyleUrl =
+    MAP_STYLES.find((s) => s.id === data.mapStyle)?.url ?? MAP_STYLES[0].url;
+  const activeIndex = Math.max(
+    0,
+    data.chapters.findIndex((c) => c.id === activeChapterId)
+  );
+  const activeChapter = data.chapters[activeIndex];
+  const progress = ((activeIndex + 1) / data.chapters.length) * 100;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
-      {/* Map */}
       <div className="absolute inset-0">
         <Map
           ref={mapRef}
@@ -174,7 +144,6 @@ function EmbedContent() {
         />
       </div>
 
-      {/* Progress bar */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-black/20 z-20">
         <motion.div
           className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
@@ -184,16 +153,15 @@ function EmbedContent() {
         />
       </div>
 
-      {/* Story overlay */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        <div className="min-h-screen flex items-center justify-center p-8">
-          <div className="h-[30vh]" />
-        </div>
+        <div className="h-[80vh]" />
 
         {data.chapters.map((chapter, index) => (
           <div
             key={chapter.id}
-            ref={(el) => { chapterRefs.current[index] = el; }}
+            ref={(el) => {
+              chapterRefs.current[index] = el;
+            }}
             className="min-h-screen flex items-center px-4 sm:px-8"
           >
             <motion.div
@@ -203,27 +171,11 @@ function EmbedContent() {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-md"
             >
-              {/* Glow effect */}
-              {activeChapterId === chapter.id && (
-                <motion.div
-                  layoutId="chapterGlow"
-                  className="absolute -inset-2 rounded-2xl"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3))',
-                    filter: 'blur(20px)',
-                  }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                />
-              )}
-
-              <div className={`
-                relative bg-slate-950/80 backdrop-blur-xl rounded-2xl p-6 sm:p-8
-                border transition-all duration-500
-                ${activeChapterId === chapter.id ? 'border-white/20' : 'border-white/5'}
-              `}>
-                {/* Chapter number */}
+              <div
+                className={`relative bg-slate-950/80 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border transition-all duration-500 ${
+                  activeChapterId === chapter.id ? 'border-white/20' : 'border-white/5'
+                }`}
+              >
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white">
                     {index + 1}
@@ -235,39 +187,16 @@ function EmbedContent() {
                   )}
                 </div>
 
-                {/* Title */}
                 <h2 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">
                   {chapter.title}
                 </h2>
-
-                {/* Content */}
-                <p className="text-slate-300 leading-relaxed">
-                  {chapter.content}
-                </p>
+                <p className="text-slate-300 leading-relaxed">{chapter.content}</p>
               </div>
             </motion.div>
           </div>
         ))}
 
-        {/* End spacer */}
         <div className="h-[50vh]" />
-      </div>
-
-      {/* Branding */}
-      <div className="absolute bottom-4 right-4 z-20">
-        <a
-          href="https://geonarrator.studio"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-3 py-1.5 bg-slate-950/80 backdrop-blur-xl rounded-lg border border-white/10 text-xs text-slate-400 hover:text-white transition-colors"
-        >
-          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-            <ellipse cx="12" cy="12" rx="10" ry="4" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M12 2C14.5 2 16.5 6.5 16.5 12C16.5 17.5 14.5 22 12 22" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-          <span>Made with GeoNarrator</span>
-        </a>
       </div>
     </div>
   );
@@ -275,15 +204,13 @@ function EmbedContent() {
 
 export default function EmbedPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full"
-        />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <Spinner />
+        </div>
+      }
+    >
       <EmbedContent />
     </Suspense>
   );
