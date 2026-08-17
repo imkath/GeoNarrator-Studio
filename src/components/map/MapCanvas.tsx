@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Map, { Marker, NavigationControl, MapRef } from 'react-map-gl/mapbox';
 import { useStoryStore, MAP_STYLES } from '@/store/useStoryStore';
+import type { CameraState } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -31,7 +32,6 @@ export default function MapCanvas() {
   const targetChapterId = mode === 'edit' ? selectedChapterId : activeChapterId;
   const targetChapter = chapters.find(c => c.id === targetChapterId);
 
-  // Fly to chapter when selection changes
   useEffect(() => {
     if (!mapRef.current || !targetChapter || !isMapLoaded) return;
 
@@ -45,41 +45,28 @@ export default function MapCanvas() {
     });
   }, [targetChapter, isMapLoaded, targetChapterId]);
 
-  const handleMove = useCallback((evt: { viewState: { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number } }) => {
-    setCurrentCamera({
-      longitude: evt.viewState.longitude,
-      latitude: evt.viewState.latitude,
-      zoom: evt.viewState.zoom,
-      pitch: evt.viewState.pitch,
-      bearing: evt.viewState.bearing,
-    });
+  // onMove fires every frame: writing the store there re-rendered the whole
+  // editor around 60 times per second for the 3.5s of each flyTo. The camera
+  // only matters once the movement settles, which is what Quick Capture reads.
+  const handleMoveEnd = useCallback((evt: { viewState: CameraState }) => {
+    const { longitude, latitude, zoom, pitch, bearing } = evt.viewState;
+    setCurrentCamera({ longitude, latitude, zoom, pitch, bearing });
   }, [setCurrentCamera]);
 
   const handleLoad = useCallback(() => {
     setIsMapLoaded(true);
 
+    // Terrain and fog are declared as <Map> props; this only registers the DEM
+    // source those props point at.
     const map = mapRef.current?.getMap();
-    if (!map) return;
-
-    // Add terrain
-    map.addSource('mapbox-dem', {
-      type: 'raster-dem',
-      url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-      tileSize: 512,
-      maxzoom: 14
-    });
-
-    map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-
-    // Add atmospheric fog
-    map.setFog({
-      range: [0.5, 10],
-      color: '#242B4B',
-      'horizon-blend': 0.3,
-      'high-color': '#add8e6',
-      'space-color': '#0b0c21',
-      'star-intensity': 0.8
-    });
+    if (map && !map.getSource('mapbox-dem')) {
+      map.addSource('mapbox-dem', {
+        type: 'raster-dem',
+        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        tileSize: 512,
+        maxzoom: 14
+      });
+    }
 
     setIsGlobeReady(true);
   }, [setIsMapLoaded]);
@@ -107,7 +94,7 @@ export default function MapCanvas() {
         style={{ width: '100%', height: '100%' }}
         mapStyle={currentStyleUrl}
         projection={{ name: 'globe' }}
-        onMove={handleMove}
+        onMoveEnd={handleMoveEnd}
         onLoad={handleLoad}
         terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
         fog={{
@@ -122,7 +109,6 @@ export default function MapCanvas() {
       >
         <NavigationControl position="top-right" />
 
-        {/* Markers */}
         <AnimatePresence>
           {chapters.map((chapter) => {
             const isActive = targetChapterId === chapter.id;
@@ -176,7 +162,6 @@ export default function MapCanvas() {
                     <MapPin className="w-8 h-8" strokeWidth={2} />
                   </div>
 
-                  {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     <div className="bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap border border-white/10">
                       {chapter.title}
@@ -184,7 +169,6 @@ export default function MapCanvas() {
                     </div>
                   </div>
 
-                  {/* Pulse ring for active marker */}
                   {isActive && (
                     <motion.div
                       className="absolute inset-0 -z-10"
@@ -202,7 +186,6 @@ export default function MapCanvas() {
         </AnimatePresence>
       </Map>
 
-      {/* Loading overlay */}
       <AnimatePresence>
         {!isGlobeReady && (
           <motion.div
@@ -222,13 +205,12 @@ export default function MapCanvas() {
               transition={{ delay: 0.3 }}
               className="mt-4 text-sm text-slate-400 font-mono tracking-wider"
             >
-              INITIALIZING GLOBE ENGINE
+              Loading map
             </motion.p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Editor help overlay */}
       {mode === 'edit' && isGlobeReady && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

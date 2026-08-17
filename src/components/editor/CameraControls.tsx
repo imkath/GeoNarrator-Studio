@@ -16,6 +16,48 @@ import {
   EyeOff
 } from 'lucide-react';
 
+// Tailwind scans source as plain text, so a class built as `bg-${color}-400`
+// never reaches the stylesheet. Every variant is spelled out.
+type Accent = 'blue' | 'emerald' | 'amber';
+
+const ACCENTS: Record<Accent, {
+  text: string;
+  iconBg: string;
+  fill: string;
+  mark: string;
+  border: string;
+  dot: string;
+  presetOn: string;
+}> = {
+  blue: {
+    text: 'text-blue-400',
+    iconBg: 'bg-blue-400/20',
+    fill: 'bg-gradient-to-r from-blue-400/40 to-blue-400/60',
+    mark: 'bg-blue-400',
+    border: 'border-blue-400',
+    dot: 'bg-blue-400',
+    presetOn: 'bg-blue-400/20 text-blue-400 border border-blue-400/50',
+  },
+  emerald: {
+    text: 'text-emerald-400',
+    iconBg: 'bg-emerald-400/20',
+    fill: 'bg-gradient-to-r from-emerald-400/40 to-emerald-400/60',
+    mark: 'bg-emerald-400',
+    border: 'border-emerald-400',
+    dot: 'bg-emerald-400',
+    presetOn: 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/50',
+  },
+  amber: {
+    text: 'text-amber-400',
+    iconBg: 'bg-amber-400/20',
+    fill: 'bg-gradient-to-r from-amber-400/40 to-amber-400/60',
+    mark: 'bg-amber-400',
+    border: 'border-amber-400',
+    dot: 'bg-amber-400',
+    presetOn: 'bg-amber-400/20 text-amber-400 border border-amber-400/50',
+  },
+};
+
 interface SliderProps {
   label: string;
   description: string;
@@ -26,7 +68,7 @@ interface SliderProps {
   step: number;
   unit?: string;
   onChange: (value: number) => void;
-  color: string;
+  accent: Accent;
   marks?: { value: number; label: string }[];
   presets?: { value: number; label: string; icon?: React.ReactNode }[];
   helpText?: string;
@@ -42,26 +84,26 @@ function CameraSlider({
   step,
   unit = '',
   onChange,
-  color,
+  accent,
   marks = [],
   presets = [],
   helpText
 }: SliderProps) {
   const [showHelp, setShowHelp] = useState(false);
   const percentage = ((value - min) / (max - min)) * 100;
-  const colorClass = color.replace('text-', '');
+  const styles = ACCENTS[accent];
+  const sliderId = `camera-${label.toLowerCase()}`;
 
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-${colorClass}/20`}>
-            <span className={color}>{icon}</span>
+          <div className={`p-1.5 rounded-lg ${styles.iconBg}`}>
+            <span className={styles.text}>{icon}</span>
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-white">{label}</span>
+              <label htmlFor={sliderId} className="text-xs font-semibold text-white">{label}</label>
               {helpText && (
                 <button
                   onClick={() => setShowHelp(!showHelp)}
@@ -75,7 +117,6 @@ function CameraSlider({
           </div>
         </div>
 
-        {/* Value display with +/- buttons */}
         <div className="flex items-center gap-1">
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -99,7 +140,6 @@ function CameraSlider({
         </div>
       </div>
 
-      {/* Help tooltip */}
       <AnimatePresence>
         {showHelp && helpText && (
           <motion.div
@@ -113,20 +153,16 @@ function CameraSlider({
         )}
       </AnimatePresence>
 
-      {/* Slider track */}
       <div className="relative">
-        {/* Track background with gradient */}
         <div className="relative h-3 bg-white/5 rounded-full overflow-visible">
-          {/* Track fill */}
           <motion.div
-            className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-${colorClass}/40 to-${colorClass}/60`}
+            className={`absolute inset-y-0 left-0 rounded-full ${styles.fill}`}
             style={{ width: `${percentage}%` }}
             initial={false}
             animate={{ width: `${percentage}%` }}
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           />
 
-          {/* Marks on track */}
           {marks.map((mark) => {
             const markPercentage = ((mark.value - min) / (max - min)) * 100;
             return (
@@ -135,26 +171,26 @@ function CameraSlider({
                 className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center"
                 style={{ left: `${markPercentage}%` }}
               >
-                <div className={`w-0.5 h-3 ${mark.value <= value ? `bg-${colorClass}` : 'bg-white/20'} rounded-full`} />
+                <div className={`w-0.5 h-3 ${mark.value <= value ? styles.mark : 'bg-white/20'} rounded-full`} />
               </div>
             );
           })}
 
-          {/* Thumb */}
           <motion.div
-            className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white shadow-lg shadow-black/30 border-2 border-${colorClass} cursor-grab active:cursor-grabbing flex items-center justify-center`}
+            className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white shadow-lg shadow-black/30 border-2 ${styles.border} cursor-grab active:cursor-grabbing flex items-center justify-center pointer-events-none`}
             style={{ left: `calc(${percentage}% - 10px)` }}
             initial={false}
             animate={{ left: `calc(${percentage}% - 10px)` }}
             transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             whileHover={{ scale: 1.2 }}
           >
-            <div className={`w-2 h-2 rounded-full bg-${colorClass}`} />
+            <div className={`w-2 h-2 rounded-full ${styles.dot}`} />
           </motion.div>
 
-          {/* Input overlay */}
           <input
+            id={sliderId}
             type="range"
+            aria-label={`${label}: ${description}`}
             min={min}
             max={max}
             step={step}
@@ -164,7 +200,6 @@ function CameraSlider({
           />
         </div>
 
-        {/* Mark labels */}
         {marks.length > 0 && (
           <div className="relative h-4 mt-1">
             {marks.map((mark) => {
@@ -183,7 +218,6 @@ function CameraSlider({
         )}
       </div>
 
-      {/* Quick presets */}
       {presets.length > 0 && (
         <div className="flex gap-1.5 flex-wrap">
           {presets.map((preset) => (
@@ -195,7 +229,7 @@ function CameraSlider({
               className={`
                 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all
                 ${Math.abs(value - preset.value) < step
-                  ? `bg-${colorClass}/20 text-${colorClass} border border-${colorClass}/50`
+                  ? styles.presetOn
                   : 'bg-white/5 text-slate-400 border border-white/5 hover:bg-white/10 hover:text-white'
                 }
               `}
@@ -246,11 +280,9 @@ export default function CameraControls() {
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950">
-      {/* Gradient accent */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
       <div className="p-5 space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-indigo-500/20 rounded-lg">
@@ -272,7 +304,6 @@ export default function CameraControls() {
           </motion.button>
         </div>
 
-        {/* Zoom Slider */}
         <CameraSlider
           label="Zoom"
           description="Distance from the ground"
@@ -283,7 +314,7 @@ export default function CameraControls() {
           step={0.5}
           unit="x"
           onChange={handleZoomChange}
-          color="text-blue-400"
+          accent="blue"
           marks={[
             { value: 1, label: 'World' },
             { value: 5, label: 'Country' },
@@ -299,7 +330,6 @@ export default function CameraControls() {
           helpText="Lower values show more area (zoomed out), higher values show more detail (zoomed in). Use 1-5 for continents, 5-10 for regions, 10-15 for cities, 15+ for streets."
         />
 
-        {/* Pitch Slider */}
         <CameraSlider
           label="Tilt"
           description="Camera angle from above"
@@ -310,7 +340,7 @@ export default function CameraControls() {
           step={5}
           unit="°"
           onChange={handlePitchChange}
-          color="text-emerald-400"
+          accent="emerald"
           marks={[
             { value: 0, label: 'Flat' },
             { value: 30, label: '30°' },
@@ -325,7 +355,6 @@ export default function CameraControls() {
           helpText="0° looks straight down (like Google Maps). Higher angles tilt the camera toward the horizon, showing terrain and buildings in 3D. Use 45-75° for dramatic cinematic views."
         />
 
-        {/* Bearing Slider */}
         <CameraSlider
           label="Rotation"
           description="Compass orientation"
@@ -336,7 +365,7 @@ export default function CameraControls() {
           step={15}
           unit="°"
           onChange={handleBearingChange}
-          color="text-amber-400"
+          accent="amber"
           marks={[
             { value: -180, label: 'S' },
             { value: -90, label: 'W' },
@@ -353,9 +382,7 @@ export default function CameraControls() {
           helpText="Rotates the map around its center. 0° points North (up), 90° points East (right), -90° points West (left), ±180° points South (down)."
         />
 
-        {/* Divider */}
         <div className="border-t border-white/10 pt-5">
-          {/* Quick capture section */}
           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
             <div className="flex items-start gap-3 mb-4">
               <div className="p-2 bg-indigo-500/20 rounded-lg shrink-0">
@@ -369,7 +396,6 @@ export default function CameraControls() {
               </div>
             </div>
 
-            {/* Live view comparison */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="bg-black/30 rounded-lg p-2.5 border border-white/5">
                 <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
