@@ -46,6 +46,21 @@ npm run typecheck
 npm run build
 ```
 
+## Despliegue
+
+El sitio es estático: `npm run build` deja todo en `out/`, sin servidor que
+mantener. Está en Cloudflare Pages, proyecto `geonarrator`.
+
+```bash
+npm run build
+npx wrangler pages deploy out --project-name geonarrator --branch main
+```
+
+El token de Mapbox se hornea en el bundle durante el build, así que el de
+producción tiene que tener restricción de URL al dominio. Verificado: con un
+token restringido, tanto los tiles como la búsqueda responden 403 desde
+cualquier otro origen.
+
 ## Datos para probar
 
 Cualquier GeoJSON sirve. Para probar con datos reales de Chile, la
