@@ -207,22 +207,20 @@ export default function StoryOverlay() {
               whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
               viewport={{ once: false, margin: '-30%' }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="pointer-events-auto max-w-xl w-full"
+              className="pointer-events-auto max-w-md w-full"
             >
-              <div className="relative">
-                <div className={`absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-xl transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
+              <div
+                className={`relative bg-black/75 backdrop-blur-xl rounded-2xl overflow-hidden border transition-colors duration-500 ${
+                  isActive ? 'border-white/25' : 'border-white/10'
+                }`}
+              >
 
-                <div className="relative bg-black/70 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent" aria-hidden="true" />
 
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600" aria-hidden="true" />
-
-                  <div className="p-6 sm:p-8 md:p-10">
+                  <div className="p-6 sm:p-7">
                     <div className="flex items-center gap-3 mb-4 sm:mb-6">
                       <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30">
                         <span className="text-xs font-bold text-indigo-400" aria-hidden="true">{index + 1}</span>
                       </div>
-                      <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" aria-hidden="true" />
                       {chapter.pitch > 10 && (
                         <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider px-2 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                           3D View
@@ -231,7 +229,7 @@ export default function StoryOverlay() {
                     </div>
 
                     <h2
-                      className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-white tracking-tight"
+                      className="text-2xl sm:text-3xl font-bold mb-3 text-white tracking-tight"
                       style={{
                         fontFamily: 'system-ui, -apple-system, sans-serif',
                         letterSpacing: '-0.02em'
@@ -240,7 +238,7 @@ export default function StoryOverlay() {
                       {chapter.title}
                     </h2>
 
-                    <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-light">
+                    <p className="text-[15px] text-slate-300 leading-relaxed">
                       {chapter.content}
                     </p>
 
@@ -251,7 +249,6 @@ export default function StoryOverlay() {
                       </span>
                     </div>
                   </div>
-                </div>
               </div>
             </motion.div>
           </article>

@@ -32,6 +32,14 @@ export default function MapCanvas() {
 
   const currentStyleUrl = MAP_STYLES.find(s => s.id === mapStyle)?.url || MAP_STYLES[0].url;
 
+  // Leaving edit mode removes the sidebar and the container grows, but the
+  // WebGL canvas keeps its old size and leaves a black band on the right.
+  // The wait covers the 300ms layout transition.
+  useEffect(() => {
+    const timer = setTimeout(() => mapRef.current?.resize(), 350);
+    return () => clearTimeout(timer);
+  }, [mode]);
+
   const targetChapterId = mode === 'edit' ? selectedChapterId : activeChapterId;
   const targetChapter = chapters.find(c => c.id === targetChapterId);
   const visibleLayers = layersVisibleIn(targetChapter);

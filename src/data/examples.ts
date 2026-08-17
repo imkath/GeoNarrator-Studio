@@ -22,9 +22,9 @@ export const INITIAL_CHAPTERS: Chapter[] = [
       'Chile es una larga y angosta faja de tierra. Vista desde el espacio, parece un borde delgado entre la cordillera y el mar. Esta herramienta permite narrar su geografía sin escribir una sola línea de código.',
     longitude: -70.6693,
     latitude: -33.4489,
-    zoom: 4,
-    pitch: 0,
-    bearing: 0,
+    zoom: 4.4,
+    pitch: 45,
+    bearing: -12,
   },
   {
     id: 'atacama',
