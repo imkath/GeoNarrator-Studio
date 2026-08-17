@@ -173,6 +173,19 @@ export default function LandingPage() {
   const rotationRef = useRef<number>(0);
   const animationRef = useRef<number | null>(null);
 
+  // El hero es texto; el mapa satelital son ~546 KB. Montarlo cuando el
+  // navegador está libre deja que la primera pantalla pinte antes.
+  const [mapEnabled, setMapEnabled] = useState(false);
+  useEffect(() => {
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(() => setMapEnabled(true), { timeout: 1500 })
+      : window.setTimeout(() => setMapEnabled(true), 300);
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle as number);
+      else clearTimeout(idle as number);
+    };
+  }, []);
+
   const { scrollYProgress: heroProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
@@ -312,12 +325,14 @@ export default function LandingPage() {
       <div className="fixed inset-0 z-0">
         {/* Bailing out of the whole component here would leave the useScroll
             target ref unmounted and throw; only the map is swapped. */}
-        {!MAPBOX_TOKEN ? (
-          <div className="w-full h-full flex items-center justify-center bg-slate-950">
-            <p className="text-sm text-slate-400 max-w-md text-center px-8">
-              Set <code className="text-indigo-400">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
-              <code className="text-indigo-400"> .env.local</code> to load the map.
-            </p>
+        {!MAPBOX_TOKEN || !mapEnabled ? (
+          <div className="w-full h-full bg-slate-950 flex items-center justify-center">
+            {!MAPBOX_TOKEN && (
+              <p className="text-sm text-slate-400 max-w-md text-center px-8">
+                Set <code className="text-indigo-400">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
+                <code className="text-indigo-400"> .env.local</code> to load the map.
+              </p>
+            )}
           </div>
         ) : (
         <Map

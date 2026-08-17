@@ -1,0 +1,10 @@
+# Los archivos de /_next/static llevan un hash en el nombre: si cambia el
+# contenido, cambia la URL. Se pueden cachear para siempre en vez de
+# revalidar 763 KB en cada visita, que es lo que hacía el valor por defecto
+# de 4 horas.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# El HTML sí tiene que revalidarse: es lo que apunta a los archivos nuevos.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
