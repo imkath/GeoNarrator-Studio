@@ -108,11 +108,11 @@ Tres salidas, según lo que se necesite:
 | Preview con scroll, teclado y botones | hecho |
 | Export e import de JSON validado | hecho |
 | Embed por URL en iframe | hecho |
-| Cinco estilos de mapa | hecho |
-| Persistencia local entre sesiones | hecho |
-| Proyectos de ejemplo cargables | pendiente |
-| Cargar un GeoJSON propio y pintarlo sobre el mapa | pendiente |
-| Control de capas y leyenda | pendiente |
+| Cinco estilos de mapa, terreno 3D y proyección de globo | hecho |
+| Persistencia local entre sesiones, con migraciones versionadas | hecho |
+| Proyectos de ejemplo cargables | hecho |
+| Cargar un GeoJSON propio y pintarlo sobre el mapa | hecho |
+| Control de capas y leyenda | hecho |
 | Recuperación ante errores en todos los caminos | pendiente |
 | Accesibilidad por teclado y lector de pantalla | pendiente |
 
