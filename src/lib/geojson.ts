@@ -30,12 +30,12 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new GeoJSONError('El archivo no es JSON válido');
+    throw new GeoJSONError('The file is not valid JSON');
   }
 
   const collection = asFeatureCollection(parsed);
   if (collection.features.length === 0) {
-    throw new GeoJSONError('El archivo no contiene features');
+    throw new GeoJSONError('The file has no features');
   }
 
   const geometryKinds = new Set<string>();
@@ -46,10 +46,10 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
 
   for (const feature of collection.features) {
     if (!feature.geometry) {
-      throw new GeoJSONError('Hay features sin geometría');
+      throw new GeoJSONError('Some features have no geometry');
     }
     if (!SUPPORTED.has(feature.geometry.type)) {
-      throw new GeoJSONError(`Geometría no soportada: ${feature.geometry.type}`);
+      throw new GeoJSONError(`Unsupported geometry: ${feature.geometry.type}`);
     }
     geometryKinds.add(feature.geometry.type);
 
@@ -77,7 +77,7 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
 
 function asFeatureCollection(value: unknown): GeoJSON.FeatureCollection {
   if (typeof value !== 'object' || value === null) {
-    throw new GeoJSONError('El archivo no es un objeto GeoJSON');
+    throw new GeoJSONError('The file is not a GeoJSON object');
   }
   const candidate = value as { type?: unknown; features?: unknown };
 
@@ -86,10 +86,10 @@ function asFeatureCollection(value: unknown): GeoJSON.FeatureCollection {
     return { type: 'FeatureCollection', features: [value as GeoJSON.Feature] };
   }
   if (candidate.type !== 'FeatureCollection') {
-    throw new GeoJSONError('Se espera un FeatureCollection o un Feature');
+    throw new GeoJSONError('Expected a FeatureCollection or a Feature');
   }
   if (!Array.isArray(candidate.features)) {
-    throw new GeoJSONError('El FeatureCollection no trae la lista de features');
+    throw new GeoJSONError('The FeatureCollection has no features list');
   }
 
   return value as GeoJSON.FeatureCollection;

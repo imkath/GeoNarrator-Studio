@@ -20,7 +20,13 @@ export default function LocationSearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestRef = useRef<AbortController | null>(null);
 
-  const { selectedChapterId, updateChapter } = useStoryStore();
+  const { selectedChapterId, updateChapter, currentCamera } = useStoryStore();
+
+  // Kept in a ref so panning the map does not rebuild the search callback.
+  const near = useRef(currentCamera);
+  useEffect(() => {
+    near.current = currentCamera;
+  }, [currentCamera]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -51,8 +57,10 @@ export default function LocationSearch() {
     if (coords) {
       setResults([{
         id: 'coordinates',
-        label: `Coordinates: ${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`,
+        label: `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`,
+        context: 'Coordinates',
         center: coords,
+        zoom: 14,
         isCoordinate: true,
       }]);
       setIsLoading(false);
@@ -68,7 +76,12 @@ export default function LocationSearch() {
     setError(null);
 
     try {
-      setResults(await searchPlaces(searchQuery, MAPBOX_TOKEN, controller.signal));
+      setResults(
+        await searchPlaces(searchQuery, MAPBOX_TOKEN, {
+          near: [near.current.longitude, near.current.latitude],
+          signal: controller.signal,
+        })
+      );
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
       setError('Failed to search locations');
@@ -91,7 +104,9 @@ export default function LocationSearch() {
     if (!selectedChapterId) return;
 
     const [lng, lat] = result.center;
-    updateChapter(selectedChapterId, { longitude: lng, latitude: lat });
+    // Moving the marker without moving the camera left the reader looking at
+    // the whole country after picking a specific market.
+    updateChapter(selectedChapterId, { longitude: lng, latitude: lat, zoom: result.zoom });
 
     setQuery(result.label);
     setIsOpen(false);
@@ -175,7 +190,10 @@ export default function LocationSearch() {
                         <p className="text-sm text-white truncate group-hover:text-indigo-300 transition-colors">
                           {result.label}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                        {result.context && (
+                          <p className="text-[10px] text-slate-400 truncate">{result.context}</p>
+                        )}
+                        <p className="text-[10px] text-slate-600 mt-0.5 font-mono">
                           {result.center[1].toFixed(4)}, {result.center[0].toFixed(4)}
                         </p>
                       </div>

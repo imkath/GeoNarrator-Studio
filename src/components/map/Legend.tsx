@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import type { DataLayer } from '@/types';
 
 const compact = (value: number) =>
-  new Intl.NumberFormat('es-CL', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
 /**
  * Reads the styles rather than describing them: a layer coloured by a property
@@ -18,7 +18,7 @@ export default function Legend({ layers }: { layers: DataLayer[] }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="absolute bottom-6 left-6 z-10 max-w-[240px] bg-black/70 backdrop-blur-md border border-white/10 rounded-xl p-3 space-y-3"
-      aria-label="Leyenda de capas"
+      aria-label="Layer legend"
     >
       {layers.map((layer) => (
         <div key={layer.id}>
@@ -45,7 +45,7 @@ export default function Legend({ layers }: { layers: DataLayer[] }) {
                 style={{ backgroundColor: layer.style.color, opacity: layer.style.opacity }}
               />
               <span className="text-[9px] text-slate-400">
-                {layer.featureCount.toLocaleString('es-CL')} elementos
+                {layer.featureCount.toLocaleString()} features
               </span>
             </div>
           )}

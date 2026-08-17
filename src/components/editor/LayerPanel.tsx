@@ -62,7 +62,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
       if (bounds && onFlyTo) onFlyTo(bounds);
     } catch (err) {
       setError(
-        err instanceof GeoJSONError ? err.message : 'No se pudo leer el archivo'
+        err instanceof GeoJSONError ? err.message : 'Could not read the file'
       );
     } finally {
       setBusy(false);
@@ -73,7 +73,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
     <div>
       <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
         <Layers3 className="w-3 h-3" aria-hidden="true" />
-        Capas de datos
+        Data Layers
       </h3>
 
       <div
@@ -109,9 +109,9 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
           className="inline-flex items-center gap-2 text-xs font-medium text-indigo-300 hover:text-white cursor-pointer"
         >
           <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-          {busy ? 'Leyendo…' : 'Cargar GeoJSON'}
+          {busy ? 'Reading…' : 'Load GeoJSON'}
         </label>
-        <p className="text-[10px] text-slate-600 mt-1">o arrastra el archivo aquí</p>
+        <p className="text-[10px] text-slate-600 mt-1">or drop the file here</p>
       </div>
 
       {error && (
@@ -139,7 +139,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                   <button
                     onClick={() => selectedChapter && toggleLayerInChapter(selectedChapter.id, layer.id)}
                     className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                    aria-label={`${visible ? 'Ocultar' : 'Mostrar'} ${layer.name} en esta escena`}
+                    aria-label={`${visible ? 'Hide' : 'Show'} ${layer.name} in this scene`}
                     aria-pressed={visible}
                   >
                     {visible ? (
@@ -154,15 +154,15 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                       {layer.name}
                     </p>
                     <p className="text-[9px] text-slate-500">
-                      {layer.featureCount.toLocaleString('es-CL')} elementos
-                      {layer.featureCount > HEAVY_FEATURE_COUNT && ' · capa pesada'}
+                      {layer.featureCount.toLocaleString()} features
+                      {layer.featureCount > HEAVY_FEATURE_COUNT && ' · heavy layer'}
                     </p>
                   </div>
 
                   <button
                     onClick={() => removeLayer(layer.id)}
                     className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    aria-label={`Eliminar capa ${layer.name}`}
+                    aria-label={`Delete layer ${layer.name}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
@@ -187,7 +187,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                 {numericKeys.length > 0 && (
                   <label className="block">
                     <span className="text-[9px] text-slate-500 uppercase tracking-wider">
-                      Colorear según
+                      Colour by
                     </span>
                     <select
                       value={layer.style.property ?? ''}
@@ -200,7 +200,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                       }}
                       className="mt-1 w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:border-indigo-500/50 focus:outline-none"
                     >
-                      <option value="">Color fijo</option>
+                      <option value="">Flat colour</option>
                       {numericKeys.map((key) => (
                         <option key={key} value={key}>
                           {key}
@@ -212,7 +212,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
 
                 <label className="block">
                   <span className="text-[9px] text-slate-500 uppercase tracking-wider">
-                    Opacidad {Math.round(layer.style.opacity * 100)}%
+                    Opacity {Math.round(layer.style.opacity * 100)}%
                   </span>
                   <input
                     type="range"
@@ -222,13 +222,13 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                     value={layer.style.opacity}
                     onChange={(e) => updateLayerStyle(layer.id, { opacity: parseFloat(e.target.value) })}
                     className="w-full mt-1 accent-indigo-500"
-                    aria-label={`Opacidad de ${layer.name}`}
+                    aria-label={`Opacity of ${layer.name}`}
                   />
                 </label>
 
                 {layerWeight(layer) > 400_000 && (
                   <p className="text-[9px] text-amber-400/80">
-                    Esta capa no cabe en el enlace del embed. Exporta el JSON para compartirla.
+                    This layer does not fit in the embed link. Export the JSON to share it.
                   </p>
                 )}
               </motion.div>
@@ -238,8 +238,8 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
 
         {layers.length === 0 && (
           <p className="text-[10px] text-slate-600 leading-relaxed">
-            Una capa se dibuja sobre el mapa en todas las escenas. Desde cada escena puedes
-            ocultarla, para que la historia también revele datos y no solo mueva la cámara.
+            A layer is drawn on every scene. Each scene can hide it, so the story reveals
+            data instead of only moving the camera.
           </p>
         )}
       </div>

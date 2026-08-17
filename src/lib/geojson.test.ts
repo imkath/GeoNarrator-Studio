@@ -50,19 +50,19 @@ describe('parseGeoJSON', () => {
 
   it('explains what is wrong instead of throwing a parser error', () => {
     expect(() => parseGeoJSON('{ not json')).toThrow(GeoJSONError);
-    expect(() => parseGeoJSON('{ not json')).toThrow(/JSON válido/);
-    expect(() => parseGeoJSON(collection([]))).toThrow(/no contiene features/);
+    expect(() => parseGeoJSON('{ not json')).toThrow(/valid JSON/);
+    expect(() => parseGeoJSON(collection([]))).toThrow(/no features/);
     expect(() => parseGeoJSON(JSON.stringify({ type: 'Polygon' }))).toThrow(/FeatureCollection/);
     expect(() =>
       parseGeoJSON(collection([{ type: 'Feature', properties: {}, geometry: null }]))
-    ).toThrow(/sin geometría/);
+    ).toThrow(/no geometry/);
     expect(() =>
       parseGeoJSON(
         collection([
           { type: 'Feature', properties: {}, geometry: { type: 'GeometryCollection' } },
         ])
       )
-    ).toThrow(/no soportada/);
+    ).toThrow(/Unsupported/);
   });
 });
 
