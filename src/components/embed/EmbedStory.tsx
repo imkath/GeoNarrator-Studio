@@ -135,6 +135,18 @@ export default function EmbedStory() {
           projection={{ name: 'globe' }}
           onLoad={handleMapLoad}
           interactive={false}
+          // The editor had this and the embed did not, which is most of why the
+          // same scene looked flat once shared: without fog there is no horizon,
+          // no sky and no aerial perspective, so a tilted camera reads as a
+          // cropped plane rather than a view over terrain.
+          fog={{
+            range: [0.5, 10],
+            color: '#242B4B',
+            'horizon-blend': 0.3,
+            'high-color': '#add8e6',
+            'space-color': '#0b0c21',
+            'star-intensity': 0.8,
+          }}
         >
           <DataLayers layers={visibleLayers} />
         </Map>
