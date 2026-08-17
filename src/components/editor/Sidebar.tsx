@@ -14,6 +14,7 @@ import {
 import ChapterList from './ChapterList';
 import LocationSearch from './LocationSearch';
 import CameraControls from './CameraControls';
+import LayerPanel from './LayerPanel';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -260,6 +261,10 @@ export default function Sidebar() {
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="p-4 sm:p-6 border-b border-white/5">
+            <LayerPanel />
           </div>
 
           <div className="flex flex-col">
