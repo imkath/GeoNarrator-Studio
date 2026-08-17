@@ -83,7 +83,16 @@ export default function Header() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `geonarrator-${data.exportedAt.slice(0, 10)}.json`;
+    // Named after the story, so a folder of exports is readable. Accents and
+    // punctuation are stripped because this becomes a filename.
+    const slug = (data.projectName ?? '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60);
+    a.download = `${slug || 'geonarrator'}-${data.exportedAt.slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Project exported', 'success');

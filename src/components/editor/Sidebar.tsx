@@ -24,8 +24,10 @@ export default function Sidebar() {
     chapters,
     selectedChapterId,
     mapStyle,
+    projectName,
     updateChapter,
     setMapStyle,
+    setProjectName,
   } = useStoryStore();
 
   useEffect(() => {
@@ -110,6 +112,20 @@ export default function Sidebar() {
         aria-label="Scene editor"
       >
         <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 flex-none">
+          {/* The story needs a name of its own: without this the export kept
+              the name of whatever example it started from. */}
+          <label htmlFor="project-name" className="sr-only">
+            Project name
+          </label>
+          <input
+            id="project-name"
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value.slice(0, VALIDATION.TITLE_MAX_LENGTH))}
+            placeholder="Untitled story"
+            className="w-full bg-transparent text-base font-semibold text-white placeholder:text-slate-600 rounded-lg px-2 py-1 -mx-2 mb-3 border border-transparent hover:border-white/10 focus:border-indigo-500/50 focus:bg-white/5 focus:outline-none transition-colors"
+          />
+
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
               <Layers className="w-3.5 h-3.5" aria-hidden="true" />

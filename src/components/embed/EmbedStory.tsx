@@ -23,6 +23,7 @@ export default function EmbedStory() {
   const mapRef = useRef<MapRef>(null);
   const [activeChapterId, setActiveChapterId] = useState<string>('');
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const chapterRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const { data, error } = useMemo(() => {
@@ -186,11 +187,43 @@ export default function EmbedStory() {
         )}
       </AnimatePresence>
 
+      {/* An embed is usually a short iframe on someone else's page. Without a
+          cue it reads as a dead map: the first card sits below the fold and
+          nothing says the story moves. Hidden once the reader scrolls. */}
+      <AnimatePresence>
+        {mapLoaded && activeIndex === 0 && !hasScrolled && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 pointer-events-none"
+          >
+            <span className="text-[11px] uppercase tracking-[0.2em] text-white/70">
+              Scroll
+            </span>
+            <motion.div
+              animate={{ y: [0, 6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-5 h-8 rounded-full border border-white/40 flex items-start justify-center p-1"
+              aria-hidden="true"
+            >
+              <span className="w-1 h-1.5 rounded-full bg-white/70" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div
+        onScroll={(e) => {
+          if (!hasScrolled && e.currentTarget.scrollTop > 8) setHasScrolled(true);
+        }}
         className={`absolute inset-0 z-10 ${mapLoaded ? 'overflow-y-auto' : 'overflow-hidden'}`}
       >
-        <div className="h-[80vh]" />
-
+        {/* No spacer before the first scene. An 80vh one opened the embed on a
+            screen of nothing, and shrinking it was worse: the card landed on
+            screen but outside the -30% band that reveals it, so it rendered
+            transparent. Starting at zero puts scene one in the middle of both. */}
         {data.chapters.map((chapter, index) => (
           <div
             key={chapter.id}
@@ -199,10 +232,16 @@ export default function EmbedStory() {
             }}
             className="min-h-screen flex items-center px-4 sm:px-8"
           >
+            {/* Driven by the same observer that flies the map, not by Framer's
+                whileInView. That never fired for scene one: the card mounts
+                already inside the viewport, so no intersection change followed,
+                and it stayed at its initial opacity 0 in plain sight. */}
             <motion.div
-              initial={{ opacity: 0, x: -50, filter: 'blur(10px)' }}
-              whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-              viewport={{ once: false, margin: '-30%' }}
+              animate={
+                activeIndex === index
+                  ? { opacity: 1, x: 0, filter: 'blur(0px)' }
+                  : { opacity: 0.3, x: -20, filter: 'blur(4px)' }
+              }
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-md"
             >

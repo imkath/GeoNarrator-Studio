@@ -47,7 +47,7 @@ export default function ExamplesModal({
                 {example.name}
               </span>
               <span className="ml-auto text-[10px] text-slate-500 shrink-0">
-                {example.chapters.length} escenas
+                {example.chapters.length} {example.chapters.length === 1 ? 'escena' : 'escenas'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{example.description}</p>

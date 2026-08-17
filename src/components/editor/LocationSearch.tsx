@@ -28,6 +28,16 @@ export default function LocationSearch() {
     near.current = currentCamera;
   }, [currentCamera]);
 
+  // The box holds what was searched for the scene being edited. Switching
+  // scenes without clearing it left the previous place sitting there, and
+  // typing appended to it.
+  useEffect(() => {
+    setQuery('');
+    setResults([]);
+    setError(null);
+    setIsOpen(false);
+  }, [selectedChapterId]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
