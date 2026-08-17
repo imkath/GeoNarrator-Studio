@@ -8,6 +8,7 @@ import type { MapRef } from 'react-map-gl/mapbox';
 import { Chapter } from '@/types';
 import { MAP_STYLES } from '@/store/useStoryStore';
 import { decodeStory } from '@/lib/story-codec';
+import DataLayers from '@/components/map/DataLayers';
 
 const Map = dynamic(() => import('react-map-gl/mapbox').then((mod) => mod.default), {
   ssr: false,
@@ -121,6 +122,10 @@ function EmbedContent() {
     data.chapters.findIndex((c) => c.id === activeChapterId)
   );
   const activeChapter = data.chapters[activeIndex];
+  const allLayers = data.layers ?? [];
+  const visibleLayers = activeChapter.visibleLayerIds
+    ? allLayers.filter((l) => activeChapter.visibleLayerIds!.includes(l.id))
+    : allLayers;
   const progress = ((activeIndex + 1) / data.chapters.length) * 100;
 
   return (
@@ -141,7 +146,9 @@ function EmbedContent() {
           projection={{ name: 'globe' }}
           onLoad={handleMapLoad}
           interactive={false}
-        />
+        >
+          <DataLayers layers={visibleLayers} />
+        </Map>
       </div>
 
       <div className="absolute top-0 left-0 right-0 h-1 bg-black/20 z-20">

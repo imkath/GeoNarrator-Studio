@@ -16,10 +16,12 @@ import {
   X,
   Menu,
   Code2,
+  BookOpen,
 } from 'lucide-react';
 import Logo from './Logo';
 import { EmbedModal, ImportHelpModal, ResetConfirmModal } from './HeaderModals';
-import { encodeStory } from '@/lib/story-codec';
+import ExamplesModal from './ExamplesModal';
+import { buildEmbed } from '@/lib/story-codec';
 
 type ToastType = 'success' | 'error' | 'info';
 interface Toast {
@@ -28,7 +30,7 @@ interface Toast {
   type: ToastType;
 }
 
-type Dialog = 'import-help' | 'reset' | 'embed' | null;
+type Dialog = 'import-help' | 'reset' | 'embed' | 'examples' | null;
 
 const IMPORT_INPUT_ID = 'import-project-file';
 
@@ -42,6 +44,7 @@ export default function Header() {
     setMode,
     chapters,
     mapStyle,
+    layers,
     setActiveChapterId,
     hasUnsavedChanges,
     lastSaved,
@@ -49,6 +52,7 @@ export default function Header() {
     loadProject,
     exportProject,
     resetToDefault,
+    loadExample,
   } = useStoryStore();
 
   useEffect(() => {
@@ -107,7 +111,8 @@ export default function Header() {
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const embedUrl = `${origin}/embed?data=${encodeStory({ chapters, mapStyle })}`;
+  const embed = buildEmbed({ chapters, mapStyle, layers }, `${origin}/embed?data=`.length);
+  const embedUrl = `${origin}/embed?data=${embed.encoded}`;
   const embedCode = `<iframe
   src="${embedUrl}"
   width="100%"
@@ -125,6 +130,7 @@ export default function Header() {
   };
 
   const actions = [
+    { label: 'Examples', icon: BookOpen, run: () => setDialog('examples') },
     { label: 'Export', icon: Download, run: handleExport },
     { label: 'Embed', icon: Code2, run: () => setDialog('embed') },
     { label: 'Reset', icon: RotateCcw, run: () => setDialog('reset') },
@@ -384,12 +390,23 @@ export default function Header() {
             }}
           />
         )}
+        {dialog === 'examples' && (
+          <ExamplesModal
+            onClose={() => setDialog(null)}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onPick={(example) => {
+              loadExample(example.chapters, example.mapStyle, example.name);
+              showToast(`Loaded: ${example.name}`, 'success');
+            }}
+          />
+        )}
         {dialog === 'embed' && (
           <EmbedModal
             onClose={() => setDialog(null)}
             sceneCount={chapters.length}
             embedUrl={embedUrl}
             embedCode={embedCode}
+            droppedLayers={embed.droppedLayers.map((l) => l.name)}
           />
         )}
       </AnimatePresence>

@@ -151,11 +151,13 @@ export function EmbedModal({
   sceneCount,
   embedUrl,
   embedCode,
+  droppedLayers,
 }: {
   onClose: () => void;
   sceneCount: number;
   embedUrl: string;
   embedCode: string;
+  droppedLayers: string[];
 }) {
   const [copied, setCopied] = useState(false);
   const tooLong = embedUrl.length > MAX_EMBED_URL_LENGTH;
@@ -205,6 +207,15 @@ export function EmbedModal({
             The embed carries all {sceneCount} scenes inside the URL itself.
           </p>
         </div>
+
+        {droppedLayers.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3" role="alert">
+            <p className="text-xs text-amber-300">
+              These layers do not fit in a URL and were left out of the embed:{' '}
+              {droppedLayers.join(', ')}. Export the project as JSON to share them.
+            </p>
+          </div>
+        )}
 
         {tooLong && (
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3" role="alert">
