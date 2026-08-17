@@ -46,6 +46,24 @@ npm run typecheck
 npm run build
 ```
 
+## Datos para probar
+
+Cualquier GeoJSON sirve. Para probar con datos reales de Chile, la
+Infraestructura de Datos Geoespaciales publica capas vía WFS y GeoServer las
+entrega en GeoJSON directamente:
+
+```bash
+curl "https://geoportal.cl/geoserver/Ferias_Libres/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=Ferias_Libres:ferias_libres&outputFormat=application/json" \
+  -o ferias-libres.geojson
+```
+
+Son las 370 ferias libres de la Región Metropolitana, como tramos de calle,
+con el número de puestos de cada una. Sirve para ver el coloreado por
+propiedad: `puestos` va de 0 a 911.
+
+Fuente: [Geoportal de Chile](https://geoportal.cl/geoportal/catalog/35097/Ferias%20Libres),
+Secretaría Ejecutiva SNIT.
+
 ## Decisiones que vale la pena explicar
 
 **La cámara se guarda en `onMoveEnd`, no en `onMove`.** `onMove` dispara en
