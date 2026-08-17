@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Map, { Marker, NavigationControl, MapRef } from 'react-map-gl/mapbox';
 import { useStoryStore, MAP_STYLES } from '@/store/useStoryStore';
+import DataLayers from './DataLayers';
+import Legend from './Legend';
 import type { CameraState } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin } from 'lucide-react';
@@ -24,13 +26,15 @@ export default function MapCanvas() {
     setIsMapLoaded,
     setCurrentCamera,
     setSelectedChapterId,
-    updateChapter
+    updateChapter,
+    layersVisibleIn
   } = useStoryStore();
 
   const currentStyleUrl = MAP_STYLES.find(s => s.id === mapStyle)?.url || MAP_STYLES[0].url;
 
   const targetChapterId = mode === 'edit' ? selectedChapterId : activeChapterId;
   const targetChapter = chapters.find(c => c.id === targetChapterId);
+  const visibleLayers = layersVisibleIn(targetChapter);
 
   useEffect(() => {
     if (!mapRef.current || !targetChapter || !isMapLoaded) return;
@@ -109,6 +113,8 @@ export default function MapCanvas() {
       >
         <NavigationControl position="top-right" />
 
+        <DataLayers layers={visibleLayers} />
+
         <AnimatePresence>
           {chapters.map((chapter) => {
             const isActive = targetChapterId === chapter.id;
@@ -185,6 +191,8 @@ export default function MapCanvas() {
           })}
         </AnimatePresence>
       </Map>
+
+      <Legend layers={visibleLayers} />
 
       <AnimatePresence>
         {!isGlobeReady && (
