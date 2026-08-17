@@ -152,12 +152,12 @@ export default function Header() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-        className="h-16 bg-slate-950/80 backdrop-blur-2xl border-b border-white/5 flex items-center justify-between px-3 sm:px-6 z-50 fixed top-0 w-full"
+        className="h-16 bg-slate-950/80 backdrop-blur-2xl border-b border-white/5 grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 sm:px-6 z-50 fixed top-0 w-full"
         role="banner"
       >
         <Logo />
 
-        <div className="absolute left-1/2 -translate-x-1/2">
+        <div className="flex justify-center min-w-0">
           <nav className="flex bg-white/5 rounded-xl p-1 border border-white/5" role="tablist" aria-label="Editor mode">
             {(
               [
@@ -199,10 +199,11 @@ export default function Header() {
           <div className="flex items-center">
             <label
               htmlFor={IMPORT_INPUT_ID}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10 cursor-pointer"
+              className="flex items-center gap-2 px-2.5 lg:px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10 cursor-pointer"
+              title="Import"
             >
               <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Import</span>
+              <span className="hidden lg:inline">Import</span>
             </label>
             <button
               onClick={() => setDialog('import-help')}
@@ -219,11 +220,12 @@ export default function Header() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={run}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10"
+              className="flex items-center gap-2 px-2.5 lg:px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10"
               aria-label={label}
+              title={label}
             >
               <Icon className="w-3.5 h-3.5" aria-hidden="true" />
-              {label !== 'Reset' && <span>{label}</span>}
+              {label !== 'Reset' && <span className="hidden lg:inline">{label}</span>}
             </motion.button>
           ))}
 
@@ -243,7 +245,9 @@ export default function Header() {
               <span>{hasUnsavedChanges ? 'Save' : 'Saved'}</span>
             </motion.button>
             {!hasUnsavedChanges && lastSaved && (
-              <span className="text-[10px] text-slate-500">{formatLastSaved(lastSaved)}</span>
+              <span className="hidden xl:inline text-[10px] text-slate-500">
+                {formatLastSaved(lastSaved)}
+              </span>
             )}
           </div>
         </div>
