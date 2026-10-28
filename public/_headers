@@ -8,3 +8,10 @@
 # El HTML sí tiene que revalidarse: es lo que apunta a los archivos nuevos.
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
+
+# Las imágenes que genera Next no llevan extensión, así que Pages no sabe qué
+# son. Sin el tipo correcto, LinkedIn y WhatsApp no muestran la vista previa.
+/opengraph-image
+  Content-Type: image/png
+/apple-icon
+  Content-Type: image/png
