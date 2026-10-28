@@ -1,17 +1,12 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { Chapter, DataLayer, EditorMode, CameraState, LayerStyle } from '@/types';
-import { INITIAL_CHAPTERS } from '@/data/examples';
+import { INITIAL_CHAPTERS, PREVIOUS_DEMO_CHAPTERS } from '@/data/examples';
+import { isMapStyle, MAP_STYLES, type MapStyle } from '@/lib/map-styles';
+import { ProjectError, validateChapters, validateLayers } from '@/lib/validate';
 
-export type MapStyle = 'dark' | 'satellite' | 'streets' | 'outdoors' | 'light';
-
-export const MAP_STYLES: { id: MapStyle; name: string; url: string }[] = [
-  { id: 'dark', name: 'Dark', url: 'mapbox://styles/mapbox/dark-v11' },
-  { id: 'satellite', name: 'Satellite', url: 'mapbox://styles/mapbox/satellite-streets-v12' },
-  { id: 'streets', name: 'Streets', url: 'mapbox://styles/mapbox/streets-v12' },
-  { id: 'outdoors', name: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12' },
-  { id: 'light', name: 'Light', url: 'mapbox://styles/mapbox/light-v11' },
-];
+export { MAP_STYLES };
+export type { MapStyle };
 
 export const VALIDATION = {
   TITLE_MAX_LENGTH: 100,
@@ -45,6 +40,11 @@ interface StoryState {
   projectName: string;
   lastSaved: string | null;
   hasUnsavedChanges: boolean;
+  /** Set when the browser refused to store the project (usually a full quota). */
+  storageError: string | null;
+  /** Area the map should frame next, e.g. a layer that was just loaded. */
+  pendingBounds: [number, number, number, number] | null;
+  setPendingBounds: (bounds: [number, number, number, number] | null) => void;
 
   setMode: (mode: EditorMode) => void;
   setActiveChapterId: (id: string) => void;
@@ -96,6 +96,8 @@ const getInitialState = () => ({
   projectName: 'La geografía de los extremos',
   lastSaved: null,
   hasUnsavedChanges: false,
+  storageError: null as string | null,
+  pendingBounds: null as [number, number, number, number] | null,
 });
 
 type PersistedSlice = Pick<
@@ -109,7 +111,7 @@ type PersistedSlice = Pick<
  * This has to stay a literal snapshot of the old shape, not a description of
  * the new one: it is only ever compared against, never rendered.
  */
-const LEGACY_DEMO_CHAPTERS: Chapter[] = INITIAL_CHAPTERS.map(ch =>
+export const LEGACY_DEMO_CHAPTERS: Chapter[] = PREVIOUS_DEMO_CHAPTERS.map(ch =>
   ch.id === 'intro' ? { ...ch, zoom: 4, pitch: 0, bearing: 0 } : ch
 );
 
@@ -132,14 +134,19 @@ export function migrateStoredState(persisted: unknown): PersistedSlice {
 
   // Layers only exist because the user loaded a file, which makes the project
   // theirs no matter what the scenes still look like.
-  const isLegacyDemo =
-    (state.layers ?? []).length === 0 &&
-    sameChapters(state.chapters, LEGACY_DEMO_CHAPTERS);
+  const noLayers = (state.layers ?? []).length === 0;
+  const isLegacyDemo = noLayers && sameChapters(state.chapters, LEGACY_DEMO_CHAPTERS);
+  // Version 4 sessions hold the demo with its 3D camera and the old copy.
+  const isPreviousDemo = noLayers && sameChapters(state.chapters, PREVIOUS_DEMO_CHAPTERS);
 
   return {
     ...fresh,
     ...state,
-    chapters: isLegacyDemo ? fresh.chapters : state.chapters ?? fresh.chapters,
+    chapters: isLegacyDemo || isPreviousDemo ? fresh.chapters : state.chapters ?? fresh.chapters,
+    projectName:
+      (isLegacyDemo || isPreviousDemo) && state.projectName === 'La geografía de los extremos'
+        ? fresh.projectName
+        : state.projectName ?? fresh.projectName,
     // Only on the untouched demo, and only if the style is the one it shipped
     // with. Picking dark on your own project has to survive.
     mapStyle:
@@ -152,6 +159,41 @@ export function migrateStoredState(persisted: unknown): PersistedSlice {
   };
 }
 
+/**
+ * localStorage holds about 5 MB. A large GeoJSON layer can pass that, and the
+ * browser then throws on every write, which zustand does not catch: the
+ * project silently stopped being kept. The failure is surfaced instead.
+ */
+const safeStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+      if (useStoryStore.getState().storageError) useStoryStore.setState({ storageError: null });
+    } catch {
+      if (!useStoryStore.getState().storageError) {
+        useStoryStore.setState({
+          storageError:
+            'El navegador no tiene espacio para guardar este proyecto. Exporta el JSON para no perderlo.',
+        });
+      }
+    }
+  },
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Nothing to recover: the item was already unreachable.
+    }
+  },
+};
+
 export const useStoryStore = create<StoryState>()(
   persist(
     (set, get) => ({
@@ -161,6 +203,7 @@ export const useStoryStore = create<StoryState>()(
       setActiveChapterId: (id) => set({ activeChapterId: id }),
       setSelectedChapterId: (id) => set({ selectedChapterId: id }),
       setIsMapLoaded: (loaded) => set({ isMapLoaded: loaded }),
+      setPendingBounds: (bounds) => set({ pendingBounds: bounds }),
       setCurrentCamera: (camera) => set({ currentCamera: camera }),
       setMapStyle: (style) => set({ mapStyle: style, hasUnsavedChanges: true }),
 
@@ -169,9 +212,11 @@ export const useStoryStore = create<StoryState>()(
         const currentChapter = chapters.find(c => c.id === selectedChapterId) || chapters[0];
         const newId = `chapter-${Date.now()}`;
 
+        // Offset a little from the selected scene so the new marker does not
+        // sit exactly on top of the old one, and keep its framing and layers.
         const newChapter: Chapter = {
           id: newId,
-          title: 'New Scene',
+          title: `Escena ${chapters.length + 1}`,
           content: '',
           longitude: currentChapter.longitude + 0.5,
           latitude: currentChapter.latitude + 0.5,
@@ -291,32 +336,29 @@ export const useStoryStore = create<StoryState>()(
 
       loadProject: (data: ProjectData) => {
         try {
-          if (!data.chapters || !Array.isArray(data.chapters) || data.chapters.length === 0) {
-            return { success: false, error: 'Invalid project: no chapters found' };
-          }
-
-          for (const chapter of data.chapters) {
-            if (!chapter.id || !chapter.title ||
-                typeof chapter.longitude !== 'number' ||
-                typeof chapter.latitude !== 'number') {
-              return { success: false, error: 'Invalid project: chapter data is incomplete' };
-            }
-          }
-
+          const chapters = validateChapters(data?.chapters);
+          const layers = validateLayers(data?.layers);
           set({
-            chapters: data.chapters,
-            layers: Array.isArray(data.layers) ? data.layers : [],
-            mapStyle: data.mapStyle || 'dark',
-            projectName: data.projectName || 'Untitled Project',
-            selectedChapterId: data.chapters[0].id,
-            activeChapterId: data.chapters[0].id,
+            chapters,
+            layers,
+            mapStyle: isMapStyle(data.mapStyle) ? data.mapStyle : 'dark',
+            projectName:
+              typeof data.projectName === 'string' && data.projectName.trim()
+                ? data.projectName.slice(0, VALIDATION.TITLE_MAX_LENGTH)
+                : 'Historia sin título',
+            selectedChapterId: chapters[0].id,
+            activeChapterId: chapters[0].id,
+            mode: 'edit',
             hasUnsavedChanges: false,
             lastSaved: new Date().toISOString(),
           });
 
           return { success: true };
-        } catch {
-          return { success: false, error: 'Failed to parse project data' };
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof ProjectError ? err.message : 'No se pudo leer el proyecto.',
+          };
         }
       },
 
@@ -367,10 +409,12 @@ export const useStoryStore = create<StoryState>()(
     }),
     {
       name: 'geonarrator-storage',
+      storage: createJSONStorage(() => safeStorage),
       // 4 rather than 3: version 3 shipped with a migration that matched on
       // scene ids and wiped edits made to the demo. Comparing whole scenes is
       // idempotent, so re-running it over an already migrated session is safe.
-      version: 4,
+      // 5: the demo copy was rewritten; untouched demos pick up the new text.
+      version: 5,
       partialize: (state) => ({
         chapters: state.chapters,
         layers: state.layers,

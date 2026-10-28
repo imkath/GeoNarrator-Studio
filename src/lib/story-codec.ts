@@ -1,10 +1,13 @@
 import { Chapter, DataLayer } from '@/types';
-import type { MapStyle } from '@/store/useStoryStore';
+import { isMapStyle, type MapStyle } from '@/lib/map-styles';
+import { ProjectError, validateChapters, validateLayers } from '@/lib/validate';
 
 export interface EmbedPayload {
   chapters: Chapter[];
   mapStyle: MapStyle;
   layers?: DataLayer[];
+  /** Story name, shown as the embed page title. Optional for older links. */
+  name?: string;
 }
 
 // btoa only accepts Latin-1, so an emoji or a curly quote in a scene threw
@@ -18,29 +21,25 @@ export function encodeStory(payload: EmbedPayload): string {
 }
 
 export function decodeStory(encoded: string): EmbedPayload {
-  const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(base64);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  const parsed = JSON.parse(new TextDecoder().decode(bytes));
-
-  if (!Array.isArray(parsed?.chapters) || parsed.chapters.length === 0) {
-    throw new Error('Story has no scenes');
+  let parsed: { chapters?: unknown; layers?: unknown; mapStyle?: unknown; name?: unknown };
+  try {
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    parsed = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new ProjectError('El enlace está cortado o no contiene una historia.');
   }
-  for (const chapter of parsed.chapters) {
-    if (
-      typeof chapter?.id !== 'string' ||
-      typeof chapter?.title !== 'string' ||
-      typeof chapter?.longitude !== 'number' ||
-      typeof chapter?.latitude !== 'number'
-    ) {
-      throw new Error('A scene has incomplete data');
-    }
-  }
-  if (parsed.layers !== undefined && !Array.isArray(parsed.layers)) {
-    throw new Error('The layers field is not a list');
+  if (!parsed || typeof parsed !== 'object') {
+    throw new ProjectError('El enlace no contiene una historia.');
   }
 
-  return parsed as EmbedPayload;
+  return {
+    chapters: validateChapters(parsed.chapters),
+    ...(parsed.layers !== undefined ? { layers: validateLayers(parsed.layers) } : {}),
+    mapStyle: isMapStyle(parsed.mapStyle) ? parsed.mapStyle : 'satellite',
+    ...(typeof parsed.name === 'string' && parsed.name.trim() ? { name: parsed.name.slice(0, 100) } : {}),
+  };
 }
 
 // Browsers start truncating URLs past roughly this length.

@@ -36,7 +36,7 @@ describe('story-codec', () => {
   });
 
   it('rejects a story with no scenes', () => {
-    expect(() => decodeStory(encodeStory(payload([])))).toThrow(/no scenes/i);
+    expect(() => decodeStory(encodeStory(payload([])))).toThrow(/no tiene escenas/i);
   });
 
   it('rejects scenes whose coordinates are not numbers', () => {
@@ -44,7 +44,7 @@ describe('story-codec', () => {
       chapters: [{ ...chapter(), longitude: '-70.6' as unknown as number }],
       mapStyle: 'dark',
     });
-    expect(() => decodeStory(broken)).toThrow(/incomplete/i);
+    expect(() => decodeStory(broken)).toThrow(/incompletos/i);
   });
 
   it('rejects input that is not an encoded story', () => {
@@ -94,6 +94,6 @@ describe('buildEmbed', () => {
       mapStyle: 'dark',
       layers: 'nope' as never,
     });
-    expect(() => decodeStory(broken)).toThrow(/not a list/);
+    expect(() => decodeStory(broken)).toThrow(/no es una lista/);
   });
 });

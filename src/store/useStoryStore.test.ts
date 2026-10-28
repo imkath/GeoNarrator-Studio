@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { migrateStoredState, useStoryStore, type ProjectData } from './useStoryStore';
+import { LEGACY_DEMO_CHAPTERS, migrateStoredState, useStoryStore, type ProjectData } from './useStoryStore';
+import { INITIAL_CHAPTERS, PREVIOUS_DEMO_CHAPTERS } from '@/data/examples';
 import { EXAMPLES } from '@/data/examples';
 import type { DataLayer } from '@/types';
 
@@ -116,7 +117,7 @@ describe('loadProject', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/incomplete/i);
+    expect(result.error).toMatch(/incompletos/i);
   });
 
   it('falls back to the dark style when the file carries none', () => {
@@ -215,10 +216,7 @@ describe('capas de datos', () => {
 
 describe('migrateStoredState', () => {
   // What version 2 actually wrote: the demo, with a flat opening camera.
-  const legacyDemo = () =>
-    store().chapters.map(ch =>
-      ch.id === 'intro' ? { ...ch, zoom: 4, pitch: 0, bearing: 0 } : ch
-    );
+  const legacyDemo = () => structuredClone(LEGACY_DEMO_CHAPTERS);
 
   it('gives the untouched demo back its 3D camera and satellite style', () => {
     const migrated = migrateStoredState({ chapters: legacyDemo(), mapStyle: 'dark' });
@@ -291,5 +289,16 @@ describe('migrateStoredState', () => {
 
   it('falls back to the demo when there is nothing stored', () => {
     expect(migrateStoredState(undefined).chapters).toEqual(store().chapters);
+  });
+
+  it('gives a version 4 demo the rewritten copy', () => {
+    const migrated = migrateStoredState({ chapters: structuredClone(PREVIOUS_DEMO_CHAPTERS), mapStyle: 'satellite' });
+    expect(migrated.chapters).toEqual(INITIAL_CHAPTERS);
+  });
+
+  it('keeps the old copy once someone has edited a scene of it', () => {
+    const edited = structuredClone(PREVIOUS_DEMO_CHAPTERS);
+    edited[1].content = 'Mi propio texto';
+    expect(migrateStoredState({ chapters: edited }).chapters[1].content).toBe('Mi propio texto');
   });
 });
