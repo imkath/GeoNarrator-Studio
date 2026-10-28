@@ -15,3 +15,22 @@
   Content-Type: image/png
 /apple-icon
   Content-Type: image/png
+
+# Seguridad. Nadie puede meter la portada ni el editor en un iframe; /embed
+# sí, porque existe para eso. La CSP no usa frame-ancestors: Pages une con
+# coma un header repetido y una segunda política no relajaría la primera.
+# 'unsafe-inline' lo exige el export de Next (scripts inline sin nonce) y
+# blob: lo exige Mapbox GL para sus workers.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.mapbox.com; font-src 'self'; connect-src 'self' https://*.mapbox.com; worker-src 'self' blob:; child-src blob:; object-src 'none'; base-uri 'self'; form-action 'self'
+
+/embed
+  ! X-Frame-Options
+
+/embed.html
+  ! X-Frame-Options

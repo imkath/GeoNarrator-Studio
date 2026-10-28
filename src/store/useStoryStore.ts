@@ -160,6 +160,40 @@ export function migrateStoredState(persisted: unknown): PersistedSlice {
 }
 
 /**
+ * Runs on every load, not only when the stored version changes. A session
+ * written by this same version can still be corrupt (edited by hand, cut off
+ * by a full disk), and the editor reads camera fields without guards, so a
+ * bad scene used to crash it on every reload with no way out.
+ */
+export function restoreStoredState(persisted: unknown): PersistedSlice {
+  const state = (persisted ?? {}) as Record<string, unknown>;
+  const fresh = getInitialState();
+
+  let chapters = fresh.chapters;
+  try {
+    chapters = validateChapters(state.chapters);
+  } catch {
+    // Unreadable scenes: start from the demo rather than a broken editor.
+  }
+
+  let layers: DataLayer[] = [];
+  try {
+    layers = validateLayers(state.layers);
+  } catch {
+    // Layers are optional; losing them beats losing the scenes too.
+  }
+
+  return {
+    chapters,
+    layers,
+    mapStyle: isMapStyle(state.mapStyle) ? state.mapStyle : fresh.mapStyle,
+    projectName:
+      typeof state.projectName === 'string' ? state.projectName.slice(0, VALIDATION.TITLE_MAX_LENGTH) : fresh.projectName,
+    lastSaved: typeof state.lastSaved === 'string' ? state.lastSaved : null,
+  };
+}
+
+/**
  * localStorage holds about 5 MB. A large GeoJSON layer can pass that, and the
  * browser then throws on every write, which zustand does not catch: the
  * project silently stopped being kept. The failure is surfaced instead.
@@ -423,6 +457,15 @@ export const useStoryStore = create<StoryState>()(
         lastSaved: state.lastSaved,
       }),
       migrate: migrateStoredState,
+      merge: (persisted, current) => {
+        const restored = restoreStoredState(persisted);
+        return {
+          ...current,
+          ...restored,
+          selectedChapterId: restored.chapters[0].id,
+          activeChapterId: restored.chapters[0].id,
+        };
+      },
     }
   )
 );

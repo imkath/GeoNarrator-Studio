@@ -43,3 +43,4 @@ next-env.d.ts
 
 # Cloudflare Pages build output
 /out/
+.audit/
