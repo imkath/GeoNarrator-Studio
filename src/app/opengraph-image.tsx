@@ -6,9 +6,10 @@ export const alt = 'GeoNarrator Studio: historias que se leen sobre un mapa';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-const INK = '#14181d';
-const INK2 = '#47505a';
-const CONTOUR = '#a8561c';
+const INK = '#eef0f2';
+const NIGHT = '#0e1114';
+const INK2 = '#b6bdc5';
+const CONTOUR = '#d98a45';
 
 // Rendered once at build time, so the fonts come straight from the repo.
 const font = (file: string) => readFile(join(process.cwd(), 'src/assets', file));
@@ -24,9 +25,9 @@ function Station({ x, y, n, active = false }: { x: number; y: number; n: number;
         width: r * 2,
         height: r * 2,
         borderRadius: r,
-        border: `4px solid ${active ? '#ffffff' : INK}`,
-        background: active ? CONTOUR : '#ffffff',
-        color: active ? '#ffffff' : INK,
+        border: `4px solid ${active ? NIGHT : INK}`,
+        background: active ? CONTOUR : NIGHT,
+        color: active ? NIGHT : INK,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -48,7 +49,7 @@ export default async function Image() {
 
   return new ImageResponse(
     (
-      <div style={{ width: '100%', height: '100%', display: 'flex', background: '#ffffff', padding: 36 }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', background: NIGHT, padding: 36 }}>
         <div
           style={{
             position: 'relative',

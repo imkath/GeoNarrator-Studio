@@ -2,38 +2,34 @@
 
 ## Dirección: la hoja de una carta topográfica
 
-Una carta impresa del Instituto Geográfico Militar tiene un mapa encerrado en
-una línea de marco, coordenadas rotuladas en el borde, una cartela con el
-título y una leyenda en el margen. Todo lo que no es mapa es papel blanco y
-tinta. Esa es la lógica de la interfaz: el mapa manda, y lo que lo rodea es
-margen de imprenta.
+Una carta del Instituto Geográfico Militar tiene coordenadas rotuladas, una
+cartela con el título y una leyenda en el margen. Esa es la lógica de los
+componentes: rótulos en mono, cifras de cámara, leyendas que se arman solas.
 
-Lo propio del producto es que el marco está vivo. Las coordenadas del borde
-son las de la cámara en ese momento y cambian mientras el mapa vuela entre
-escenas. Ningún otro sitio puede tener ese detalle, porque sale de lo que la
-herramienta hace.
+El mapa satelital ocupa la pantalla y la historia corre encima, como un vuelo.
+Lo propio del producto es la lectura en vivo de la cámara en la esquina: son
+los valores reales mientras el mapa vuela entre escenas.
 
 ## Color
 
-Los roles salen de las convenciones de color de la cartografía topográfica:
-negro para la rotulación, azul para la hidrografía, siena para las curvas de
-nivel.
+Hoja nocturna. La primera versión fue blanca, como una carta impresa, y le
+quitó al sitio lo que lo hacía sentir como un vuelo; se volvió a oscuro el
+27-oct-2026. Los roles siguen saliendo de la cartografía topográfica (tinta,
+hidrografía, curvas de nivel), invertidos para leerse sobre un satélite.
 
 | Token | Valor | Rol |
 |---|---|---|
-| `--paper` | `#ffffff` | Superficie principal. Blanco puro, sin tono hueso |
-| `--paper-2` | `#f1f3f5` | Campos, filas seleccionadas, código |
-| `--ink` | `#14181d` | Texto principal y línea de marco |
-| `--ink-2` | `#47505a` | Texto secundario (8,2:1 sobre blanco) |
-| `--ink-3` | `#646d77` | Rótulos y notas (5,2:1 sobre blanco) |
-| `--rule` | `#d6dbe0` | Divisores |
-| `--water` | `#1a5c96` | Acción principal, foco, selección (7,0:1) |
-| `--water-tint` | `#e8f0f7` | Fondo de lo seleccionado |
-| `--contour` | `#a8561c` | Marcador de la escena activa y arco de vuelo. Nunca texto largo |
-| `--danger` | `#b42318` | Borrar, errores |
-| `--caution` | `#7a4f00` | Avisos (sobre `#fff6e0`) |
+| `--paper` | `#0e1114` | Superficie. Casi negro con un dejo de azul, nunca azul marino |
+| `--paper-2` | `#181c21` | Campos, filas, código |
+| `--ink` | `#eef0f2` | Texto principal y bordes de lo activo |
+| `--ink-2` | `#b6bdc5` | Texto secundario |
+| `--ink-3` | `#8b939c` | Rótulos y notas |
+| `--rule` | `#2a3037` | Divisores |
+| `--water` | `#7fb2e0` | Acción principal, foco, selección |
+| `--contour` | `#d98a45` | Escena activa y marcador. Nunca texto largo |
+| `--danger` / `--caution` | `#ff7a6b` / `#f0b860` | Borrar y errores / avisos |
 
-Una sola tinta de acción. El siena aparece solo donde el mapa marca algo.
+Una sola tinta de acción, sin degradados ni brillos. El mapa pone el color.
 
 ## Tipografía
 
@@ -66,14 +62,15 @@ saltos.
 
 - Degradado índigo a rosa: tinta negra y un azul de hidrografía con razón.
 - Inter y JetBrains Mono: Overpass y Overpass Mono, por la señalética.
-- Glassmorphism y viñetas sobre el mapa: tarjetas opacas, el mapa sin velo.
+- Glassmorphism y halos: tarjetas opacas. Sobre el mapa solo se oscurece la
+  franja donde va el texto.
 - Etiquetas en mayúscula con tracking sobre cada título: rótulos en Overpass
   Mono pequeños solo donde nombran un dato.
 - Tres tarjetas de "para quién": la landing es una historia que se recorre, y
   cada escena explica una parte de la herramienta usándola.
 - Puntos pulsantes y halos en el marcador: un número de escena en un círculo,
   como las estaciones numeradas de un itinerario.
-- Modo oscuro permanente: blanco de imprenta. El mapa ya pone el color.
+- Navy de Tailwind (`slate-950`) como fondo: casi negro neutro.
 
 ## Copy
 
