@@ -1,315 +1,143 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useStoryStore, MAP_STYLES, VALIDATION } from '@/store/useStoryStore';
-import { motion } from 'framer-motion';
-import {
-  Layers,
-  Sparkles,
-  Map,
-  AlertCircle,
-  X,
-  ChevronRight
-} from 'lucide-react';
 import ChapterList from './ChapterList';
 import LocationSearch from './LocationSearch';
 import CameraControls from './CameraControls';
 import LayerPanel from './LayerPanel';
+import { Section, fieldClass } from './fields';
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const { chapters, selectedChapterId, mapStyle, projectName, updateChapter, setMapStyle, setProjectName } =
+    useStoryStore();
 
-  const {
-    chapters,
-    selectedChapterId,
-    mapStyle,
-    projectName,
-    updateChapter,
-    setMapStyle,
-    setProjectName,
-  } = useStoryStore();
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      // Auto-collapse on mobile
-      if (mobile) {
-        setIsCollapsed(true);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const selectedChapter = chapters.find(c => c.id === selectedChapterId);
-  const selectedChapterIndex = chapters.findIndex(c => c.id === selectedChapterId);
-
+  const selectedChapter = chapters.find((c) => c.id === selectedChapterId) ?? chapters[0];
+  const selectedIndex = chapters.indexOf(selectedChapter);
   if (!selectedChapter) return null;
 
   const titleLength = selectedChapter.title.length;
   const contentLength = selectedChapter.content.length;
-  const isTitleEmpty = titleLength === 0;
-  const isTitleTooLong = titleLength > VALIDATION.TITLE_MAX_LENGTH;
-  const isContentTooLong = contentLength > VALIDATION.CONTENT_MAX_LENGTH;
-
-  const handleTitleChange = (value: string) => {
-    if (value.length <= VALIDATION.TITLE_MAX_LENGTH) {
-      updateChapter(selectedChapterId, { title: value });
-    }
-  };
-
-  const handleContentChange = (value: string) => {
-    if (value.length <= VALIDATION.CONTENT_MAX_LENGTH) {
-      updateChapter(selectedChapterId, { content: value });
-    }
-  };
-
-  // Mobile collapsed view - show floating button
-  if (isMobile && isCollapsed) {
-    return (
-      <motion.button
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: -100, opacity: 0 }}
-        onClick={() => setIsCollapsed(false)}
-        className="fixed left-4 top-24 z-30 bg-indigo-500 text-white p-3 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center gap-2"
-        aria-label="Open editor sidebar"
-      >
-        <Layers className="w-5 h-5" aria-hidden="true" />
-        <span className="text-sm font-medium">Edit</span>
-        <ChevronRight className="w-4 h-4" aria-hidden="true" />
-      </motion.button>
-    );
-  }
+  const isTitleEmpty = selectedChapter.title.trim().length === 0;
+  const contentNearLimit = contentLength > VALIDATION.CONTENT_MAX_LENGTH * 0.9;
 
   return (
-    <>
-      {isMobile && !isCollapsed && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 z-20 md:hidden"
-          onClick={() => setIsCollapsed(true)}
-          aria-hidden="true"
+    <aside
+      className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-paper md:border-r md:border-ink"
+      aria-label="Editor de la historia"
+    >
+      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-rule">
+        <label htmlFor="project-name" className="block font-mono text-[11px] text-ink-3 mb-1">
+          Nombre de la historia
+        </label>
+        {/* The story needs a name of its own: without this the export kept
+            the name of whatever example it started from. */}
+        <input
+          id="project-name"
+          type="text"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value.slice(0, VALIDATION.TITLE_MAX_LENGTH))}
+          placeholder="Historia sin título"
+          className="w-full bg-transparent text-xl font-extrabold leading-tight tracking-[-0.01em] placeholder:text-ink-3 rounded-[2px] -mx-1 px-1 py-0.5 border border-transparent hover:border-rule focus:border-water focus:outline-none"
         />
-      )}
+      </div>
 
-      <motion.aside
-        initial={{ x: -400, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: -400, opacity: 0 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className={`
-          ${isMobile ? 'fixed left-0 top-16 bottom-0 z-30' : 'fixed left-0 top-16 bottom-0 z-20'}
-          w-[320px] sm:w-[380px] md:w-[420px] bg-slate-950/95 backdrop-blur-2xl border-r border-white/5 flex flex-col shadow-2xl shadow-black/50 overflow-hidden
-        `}
-        role="complementary"
-        aria-label="Scene editor"
+      <Section
+        title="Escenas"
+        aside={<span className="font-mono text-[11px] text-ink-3">{chapters.length} en total</span>}
       >
-        <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 flex-none">
-          {/* The story needs a name of its own: without this the export kept
-              the name of whatever example it started from. */}
-          <label htmlFor="project-name" className="sr-only">
-            Project name
-          </label>
-          <input
-            id="project-name"
-            type="text"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value.slice(0, VALIDATION.TITLE_MAX_LENGTH))}
-            placeholder="Untitled story"
-            className="w-full bg-transparent text-base font-semibold text-white placeholder:text-slate-600 rounded-lg px-2 py-1 -mx-2 mb-3 border border-transparent hover:border-white/10 focus:border-indigo-500/50 focus:bg-white/5 focus:outline-none transition-colors"
-          />
+        <ChapterList />
+      </Section>
 
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5" aria-hidden="true" />
-              Scene Properties
-            </h2>
-            <div className="flex items-center gap-2">
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 sm:px-3 py-1 rounded-full font-medium border border-indigo-500/30"
-              >
-                {selectedChapterIndex + 1}/{chapters.length}
-              </motion.span>
-              {isMobile && (
-                <button
-                  onClick={() => setIsCollapsed(true)}
-                  className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
-                  aria-label="Close sidebar"
-                >
-                  <X className="w-4 h-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 border-b border-white/5">
-            <div className="group">
-              <div className="flex items-center justify-between mb-2">
-                <label
-                  htmlFor="scene-title"
-                  className="text-[10px] text-slate-500 font-bold uppercase tracking-wider group-focus-within:text-indigo-400 transition-colors"
-                >
-                  Title
-                </label>
-                <span
-                  className={`text-[10px] font-mono ${
-                    isTitleEmpty ? 'text-amber-400' :
-                    isTitleTooLong ? 'text-red-400' :
-                    titleLength > VALIDATION.TITLE_MAX_LENGTH * 0.8 ? 'text-amber-400' :
-                    'text-slate-600'
-                  }`}
-                  aria-live="polite"
-                >
-                  {titleLength}/{VALIDATION.TITLE_MAX_LENGTH}
-                </span>
-              </div>
-              <div className="relative">
-                <input
-                  id="scene-title"
-                  type="text"
-                  value={selectedChapter.title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  className={`w-full bg-white/5 border rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:bg-white/10 transition-all ${
-                    isTitleEmpty
-                      ? 'border-amber-500/50 focus:border-amber-500/50 focus:ring-amber-500/20'
-                      : 'border-white/10 focus:border-indigo-500/50 focus:ring-indigo-500/20'
-                  }`}
-                  placeholder="Scene title..."
-                  aria-required="true"
-                  aria-invalid={isTitleEmpty}
-                  aria-describedby={isTitleEmpty ? 'title-error' : undefined}
-                />
-                {isTitleEmpty && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400" aria-hidden="true">
-                    <AlertCircle className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-              {isTitleEmpty && (
-                <p id="title-error" className="text-[10px] text-amber-400 mt-1.5 flex items-center gap-1" role="alert">
-                  <AlertCircle className="w-3 h-3" aria-hidden="true" />
-                  Title is required
-                </p>
-              )}
-            </div>
-
-            <div className="group">
-              <div className="flex items-center justify-between mb-2">
-                <label
-                  htmlFor="scene-narrative"
-                  className="text-[10px] text-slate-500 font-bold uppercase tracking-wider group-focus-within:text-indigo-400 transition-colors"
-                >
-                  Narrative
-                </label>
-                <span
-                  className={`text-[10px] font-mono ${
-                    isContentTooLong ? 'text-red-400' :
-                    contentLength > VALIDATION.CONTENT_MAX_LENGTH * 0.8 ? 'text-amber-400' :
-                    'text-slate-600'
-                  }`}
-                  aria-live="polite"
-                >
-                  {contentLength}/{VALIDATION.CONTENT_MAX_LENGTH}
-                </span>
-              </div>
-              <textarea
-                id="scene-narrative"
-                value={selectedChapter.content}
-                onChange={(e) => handleContentChange(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-300 placeholder-slate-600 h-24 sm:h-28 resize-none focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white/10 transition-all leading-relaxed"
-                placeholder="Tell the story of this location..."
-                aria-describedby={contentLength > VALIDATION.CONTENT_MAX_LENGTH * 0.9 ? 'content-warning' : undefined}
-              />
-              {contentLength > VALIDATION.CONTENT_MAX_LENGTH * 0.9 && (
-                <p id="content-warning" className="text-[10px] text-amber-400 mt-1.5" role="status">
-                  {VALIDATION.CONTENT_MAX_LENGTH - contentLength} characters remaining
-                </p>
-              )}
-            </div>
-
-            <LocationSearch />
-
-            <CameraControls />
-
-            <div role="group" aria-labelledby="map-style-label">
-              <label id="map-style-label" className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Map className="w-3 h-3" aria-hidden="true" />
-                Map Style
+      <Section
+        title={`Escena ${selectedIndex + 1}`}
+        aside={<span className="text-[12px] text-ink-3">lo que se lee y dónde mira</span>}
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-baseline justify-between mb-1">
+              <label htmlFor="scene-title" className="text-[13px] font-semibold text-ink-2">
+                Título
               </label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {MAP_STYLES.map((style) => (
-                  <motion.button
-                    key={style.id}
-                    onClick={() => setMapStyle(style.id)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      relative p-2 rounded-lg text-[10px] font-medium transition-all
-                      ${mapStyle === style.id
-                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50'
-                        : 'bg-white/5 text-slate-400 border border-white/5 hover:bg-white/10 hover:text-white'
-                      }
-                    `}
-                    aria-pressed={mapStyle === style.id}
-                    aria-label={`${style.name} map style`}
-                  >
-                    {style.name}
-                    {mapStyle === style.id && (
-                      <motion.div
-                        layoutId="style-indicator"
-                        className="absolute inset-0 border-2 border-indigo-500 rounded-lg"
-                        initial={false}
-                        transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                      />
-                    )}
-                  </motion.button>
-                ))}
-              </div>
+              <span className="font-mono text-[11px] text-ink-3">
+                {titleLength}/{VALIDATION.TITLE_MAX_LENGTH}
+              </span>
             </div>
+            <input
+              id="scene-title"
+              type="text"
+              value={selectedChapter.title}
+              maxLength={VALIDATION.TITLE_MAX_LENGTH}
+              onChange={(e) => updateChapter(selectedChapter.id, { title: e.target.value })}
+              className={`${fieldClass} ${isTitleEmpty ? '!border-caution' : ''}`}
+              placeholder="Por ejemplo, El Desierto de Atacama"
+              aria-invalid={isTitleEmpty}
+              aria-describedby={isTitleEmpty ? 'title-error' : undefined}
+            />
+            {isTitleEmpty && (
+              <p id="title-error" className="text-[12px] text-caution mt-1">
+                Sin título, la escena aparece como “Sin título” en la historia.
+              </p>
+            )}
           </div>
 
-          <div className="p-4 sm:p-6 border-b border-white/5">
-            <LayerPanel />
+          <div>
+            <div className="flex items-baseline justify-between mb-1">
+              <label htmlFor="scene-narrative" className="text-[13px] font-semibold text-ink-2">
+                Texto
+              </label>
+              <span className={`font-mono text-[11px] ${contentNearLimit ? 'text-caution' : 'text-ink-3'}`}>
+                {contentLength}/{VALIDATION.CONTENT_MAX_LENGTH}
+              </span>
+            </div>
+            <textarea
+              id="scene-narrative"
+              value={selectedChapter.content}
+              maxLength={VALIDATION.CONTENT_MAX_LENGTH}
+              onChange={(e) => updateChapter(selectedChapter.id, { content: e.target.value })}
+              className={`${fieldClass} h-32 resize-y leading-relaxed`}
+              placeholder="Lo que se lee mientras el mapa muestra este lugar."
+            />
           </div>
 
-          <div className="flex flex-col">
-            <div className="px-4 sm:px-6 pt-4 pb-2 sticky top-0 bg-slate-950/95 backdrop-blur-sm z-10">
-              <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-                <Sparkles className="w-3 h-3 text-amber-500/70" aria-hidden="true" />
-                Timeline
-              </h3>
-            </div>
-            <ChapterList />
-          </div>
+          {/* Keyed by scene: the box holds what was searched for this scene,
+              and switching scenes starts it empty. */}
+          <LocationSearch key={selectedChapter.id} />
         </div>
+      </Section>
 
-        <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-          }
-        `}</style>
-      </motion.aside>
-    </>
+      <Section title="Cámara" aside={<span className="text-[12px] text-ink-3">de esta escena</span>}>
+        <CameraControls />
+      </Section>
+
+      <Section title="Capas de datos" aside={<span className="text-[12px] text-ink-3">GeoJSON propio</span>}>
+        <LayerPanel />
+      </Section>
+
+      <Section title="Estilo del mapa" aside={<span className="text-[12px] text-ink-3">para toda la historia</span>}>
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-3 gap-1.5" role="radiogroup" aria-label="Estilo del mapa">
+          {MAP_STYLES.map((style) => {
+            const on = mapStyle === style.id;
+            return (
+              <button
+                key={style.id}
+                role="radio"
+                aria-checked={on}
+                onClick={() => setMapStyle(style.id)}
+                className={`px-2 py-2 rounded-[2px] border text-[13px] font-semibold transition-colors ${
+                  on ? 'border-water bg-water-tint text-water' : 'border-rule text-ink-2 hover:border-ink-3 hover:text-ink'
+                }`}
+              >
+                {style.name}
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+
+      <p className="px-4 sm:px-5 py-5 text-[12px] text-ink-3 leading-relaxed">
+        Todo se guarda solo en este navegador. Para llevar la historia a otro equipo, expórtala como JSON desde
+        el menú de arriba.
+      </p>
+    </aside>
   );
 }

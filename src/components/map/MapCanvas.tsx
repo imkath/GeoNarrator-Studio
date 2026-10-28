@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Map, { Marker, NavigationControl, MapRef } from 'react-map-gl/mapbox';
-import { useStoryStore, MAP_STYLES } from '@/store/useStoryStore';
+import { useStoryStore } from '@/store/useStoryStore';
+import { styleUrl } from '@/lib/map-styles';
+import { flyDuration, keepTerrain } from '@/lib/map-setup';
 import DataLayers from './DataLayers';
 import Legend from './Legend';
+import SceneMarker from './SceneMarker';
 import type { CameraState } from '@/types';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 export default function MapCanvas() {
   const mapRef = useRef<MapRef>(null);
-  const [isGlobeReady, setIsGlobeReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const {
     chapters,
@@ -27,222 +29,188 @@ export default function MapCanvas() {
     setCurrentCamera,
     setSelectedChapterId,
     updateChapter,
-    layersVisibleIn
+    layersVisibleIn,
+    pendingBounds,
+    setPendingBounds,
   } = useStoryStore();
 
-  const currentStyleUrl = MAP_STYLES.find(s => s.id === mapStyle)?.url || MAP_STYLES[0].url;
+  // A freshly loaded layer is framed once, so it is visible before anyone
+  // decides which scene should show it.
+  useEffect(() => {
+    if (!pendingBounds || !isMapLoaded || !mapRef.current) return;
+    const [w, s, e, n] = pendingBounds;
+    mapRef.current.fitBounds(
+      [
+        [w, s],
+        [e, n],
+      ],
+      { padding: 48, pitch: 0, bearing: 0, duration: flyDuration(1500), maxZoom: 15 }
+    );
+    setPendingBounds(null);
+  }, [pendingBounds, isMapLoaded, setPendingBounds]);
 
   // Leaving edit mode removes the sidebar and the container grows, but the
-  // WebGL canvas keeps its old size and leaves a black band on the right.
-  // The wait covers the 300ms layout transition.
+  // WebGL canvas keeps its old size and leaves a blank band on the right.
   useEffect(() => {
     const timer = setTimeout(() => mapRef.current?.resize(), 350);
     return () => clearTimeout(timer);
   }, [mode]);
 
+  // The store is not reset when the editor unmounts, so a second visit would
+  // otherwise start with isMapLoaded already true and fly before the map exists.
+  useEffect(() => () => setIsMapLoaded(false), [setIsMapLoaded]);
+
   const targetChapterId = mode === 'edit' ? selectedChapterId : activeChapterId;
-  const targetChapter = chapters.find(c => c.id === targetChapterId);
+  const targetChapter = chapters.find((c) => c.id === targetChapterId);
   const visibleLayers = layersVisibleIn(targetChapter);
 
+  // Depends on the camera numbers, not on the chapter object: typing in the
+  // title creates a new object on every key, and that used to restart a
+  // 3.5 s flight with each character, cancelling any manual panning.
+  const lng = targetChapter?.longitude;
+  const lat = targetChapter?.latitude;
+  const zoom = targetChapter?.zoom;
+  const pitch = targetChapter?.pitch;
+  const bearing = targetChapter?.bearing;
+  const lastFlownId = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!mapRef.current || !targetChapter || !isMapLoaded) return;
+    const map = mapRef.current;
+    if (!map || !isMapLoaded || lng === undefined || lat === undefined) return;
 
-    mapRef.current.flyTo({
-      center: [targetChapter.longitude, targetChapter.latitude],
-      zoom: targetChapter.zoom,
-      pitch: targetChapter.pitch,
-      bearing: targetChapter.bearing,
-      duration: 3500,
-      essential: true
+    // A new scene earns the full flight; nudging a slider on the same scene
+    // should answer right away.
+    const switching = lastFlownId.current !== targetChapterId;
+    lastFlownId.current = targetChapterId;
+
+    map.flyTo({
+      center: [lng, lat],
+      zoom,
+      pitch,
+      bearing,
+      duration: flyDuration(switching ? 3200 : 700),
+      essential: true,
     });
-  }, [targetChapter, isMapLoaded, targetChapterId]);
+  }, [targetChapterId, isMapLoaded, lng, lat, zoom, pitch, bearing]);
 
-  // onMove fires every frame: writing the store there re-rendered the whole
-  // editor around 60 times per second for the 3.5s of each flyTo. The camera
-  // only matters once the movement settles, which is what Quick Capture reads.
-  const handleMoveEnd = useCallback((evt: { viewState: CameraState }) => {
-    const { longitude, latitude, zoom, pitch, bearing } = evt.viewState;
-    setCurrentCamera({ longitude, latitude, zoom, pitch, bearing });
-  }, [setCurrentCamera]);
+  // onMove fires every frame; the camera only matters once it settles, which
+  // is what "Capturar la vista" reads.
+  const handleMoveEnd = useCallback(
+    (evt: { viewState: CameraState }) => {
+      const { longitude, latitude, zoom, pitch, bearing } = evt.viewState;
+      setCurrentCamera({ longitude, latitude, zoom, pitch, bearing });
+    },
+    [setCurrentCamera]
+  );
 
   const handleLoad = useCallback(() => {
-    setIsMapLoaded(true);
-
-    // Terrain and fog are declared as <Map> props; this only registers the DEM
-    // source those props point at.
     const map = mapRef.current?.getMap();
-    if (map && !map.getSource('mapbox-dem')) {
-      map.addSource('mapbox-dem', {
-        type: 'raster-dem',
-        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-        tileSize: 512,
-        maxzoom: 14
-      });
-    }
-
-    setIsGlobeReady(true);
+    if (map) keepTerrain(map);
+    setIsMapLoaded(true);
+    setIsReady(true);
   }, [setIsMapLoaded]);
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-slate-950">
-        <p className="text-red-400">Mapbox token not configured</p>
+      <div className="w-full h-full flex items-center justify-center bg-paper-2 p-8">
+        <p className="text-sm text-ink-2 max-w-sm text-center">
+          Falta el token de Mapbox (<code className="font-mono">NEXT_PUBLIC_MAPBOX_TOKEN</code>), así que el mapa no
+          puede cargar.
+        </p>
       </div>
     );
   }
 
+  const first = chapters[0];
+
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full bg-paper-2">
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{
-          longitude: chapters[0]?.longitude ?? -70.6693,
-          latitude: chapters[0]?.latitude ?? -33.4489,
-          zoom: chapters[0]?.zoom ?? 4,
-          pitch: chapters[0]?.pitch ?? 0,
-          bearing: chapters[0]?.bearing ?? 0,
+          longitude: first?.longitude ?? -70.6693,
+          latitude: first?.latitude ?? -33.4489,
+          zoom: first?.zoom ?? 4,
+          pitch: first?.pitch ?? 0,
+          bearing: first?.bearing ?? 0,
         }}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={currentStyleUrl}
+        mapStyle={styleUrl(mapStyle)}
         projection={{ name: 'globe' }}
+        language="es"
         onMoveEnd={handleMoveEnd}
         onLoad={handleLoad}
-        terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
-        fog={{
-          range: [0.5, 10],
-          color: '#242B4B',
-          'horizon-blend': 0.3,
-          'high-color': '#add8e6',
-          'space-color': '#0b0c21',
-          'star-intensity': 0.8
+        onError={(e) => {
+          // Tile hiccups also land here; only a map that never loaded is a
+          // failure worth interrupting the editor for.
+          if (!isReady) {
+            const status = (e.error as { status?: number } | undefined)?.status;
+            setLoadError(
+              status === 401 || status === 403
+                ? 'Mapbox rechazó el token de este sitio, así que el mapa no puede cargar.'
+                : 'No se pudo cargar el mapa. Revisa la conexión y recarga la página.'
+            );
+          }
         }}
         reuseMaps
       >
-        <NavigationControl position="top-right" />
+        <NavigationControl position="top-right" visualizePitch />
 
         <DataLayers layers={visibleLayers} />
 
-        <AnimatePresence>
-          {chapters.map((chapter) => {
-            const isActive = targetChapterId === chapter.id;
-            const isDraggable = mode === 'edit';
-            return (
-              <Marker
-                key={chapter.id}
-                longitude={chapter.longitude}
-                latitude={chapter.latitude}
-                anchor="bottom"
-                draggable={isDraggable}
-                onDragStart={() => {
-                  if (mode === 'edit') {
-                    setSelectedChapterId(chapter.id);
-                  }
-                }}
-                onDragEnd={(e) => {
-                  if (mode === 'edit') {
-                    updateChapter(chapter.id, {
-                      longitude: e.lngLat.lng,
-                      latitude: e.lngLat.lat
-                    });
-                  }
-                }}
-                onClick={(e) => {
-                  e.originalEvent.stopPropagation();
-                  if (mode === 'edit') {
-                    setSelectedChapterId(chapter.id);
-                  }
-                }}
-              >
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{
-                    scale: isActive ? 1.3 : 1,
-                    opacity: 1
-                  }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  whileHover={{ scale: 1.4 }}
-                  className={`relative group ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
-                >
-                  <div
-                    className={`
-                      transition-all duration-300
-                      ${isActive
-                        ? 'text-indigo-400 drop-shadow-[0_0_12px_rgba(129,140,248,0.8)]'
-                        : 'text-slate-400 hover:text-slate-200'
-                      }
-                    `}
-                  >
-                    <MapPin className="w-8 h-8" strokeWidth={2} />
-                  </div>
-
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap border border-white/10">
-                      {chapter.title}
-                      {isDraggable && <span className="text-slate-500 ml-1">· Drag to move</span>}
-                    </div>
-                  </div>
-
-                  {isActive && (
-                    <motion.div
-                      className="absolute inset-0 -z-10"
-                      initial={{ scale: 1, opacity: 0.5 }}
-                      animate={{ scale: 2.5, opacity: 0 }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/30" />
-                    </motion.div>
-                  )}
-                </motion.div>
-              </Marker>
-            );
-          })}
-        </AnimatePresence>
+        {chapters.map((chapter, index) => {
+          const isActive = targetChapterId === chapter.id;
+          const editable = mode === 'edit';
+          return (
+            <Marker
+              key={chapter.id}
+              longitude={chapter.longitude}
+              latitude={chapter.latitude}
+              anchor="center"
+              draggable={editable}
+              style={{ zIndex: isActive ? 2 : 1 }}
+              onDragStart={() => editable && setSelectedChapterId(chapter.id)}
+              onDragEnd={(e) => {
+                if (editable) {
+                  updateChapter(chapter.id, { longitude: e.lngLat.lng, latitude: e.lngLat.lat });
+                }
+              }}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                if (editable) setSelectedChapterId(chapter.id);
+              }}
+            >
+              <SceneMarker
+                number={index + 1}
+                title={chapter.title}
+                active={isActive}
+                hint={editable ? 'arrastra para moverla' : undefined}
+              />
+            </Marker>
+          );
+        })}
       </Map>
 
       <Legend layers={visibleLayers} />
 
-      <AnimatePresence>
-        {!isGlobeReady && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center z-50"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-              className="w-12 h-12 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full"
-            />
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mt-4 text-sm text-slate-400 font-mono tracking-wider"
-            >
-              Loading map
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {mode === 'edit' && isGlobeReady && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-          className="absolute bottom-6 right-6 flex flex-col gap-2 pointer-events-none z-10"
+      {!isReady && (
+        <div
+          className="absolute inset-0 z-40 bg-paper flex items-center justify-center p-8"
+          role="status"
+          aria-live="polite"
         >
-          <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-xs text-slate-300 flex items-center gap-3">
-            <kbd className="bg-white/10 px-2 py-0.5 rounded text-white font-medium">Right Click + Drag</kbd>
-            <span className="text-slate-400">Rotate</span>
-          </div>
-          <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-xs text-slate-300 flex items-center gap-3">
-            <kbd className="bg-white/10 px-2 py-0.5 rounded text-white font-medium">Ctrl + Drag</kbd>
-            <span className="text-slate-400">Pitch</span>
-          </div>
-        </motion.div>
+          <p className={`text-sm text-center max-w-xs ${loadError ? 'text-danger' : 'text-ink-2'}`}>
+            {loadError ?? 'Cargando el mapa…'}
+          </p>
+        </div>
+      )}
+
+      {mode === 'edit' && isReady && (
+        <p className="absolute top-3 left-3 z-10 hidden lg:[@media(pointer:fine)]:block bg-paper border border-rule rounded-[2px] px-2.5 py-1.5 text-[11px] text-ink-2 pointer-events-none">
+          Arrastra para moverte · <span className="font-semibold text-ink">clic derecho</span> y arrastra para
+          girar o inclinar
+        </p>
       )}
     </div>
   );

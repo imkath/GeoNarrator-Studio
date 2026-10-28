@@ -2,19 +2,22 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useStoryStore } from '@/store/useStoryStore';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, MapPin, Loader2, X, Navigation } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { parseCoordinates } from '@/lib/coordinates';
 import { searchPlaces, type Place } from '@/lib/geocoding';
+import { fieldClass } from './fields';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const LIST_ID = 'location-results';
+
+type Status = 'idle' | 'loading' | 'done' | 'error';
 
 export default function LocationSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState<Status>('idle');
   const [isOpen, setIsOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,196 +31,201 @@ export default function LocationSearch() {
     near.current = currentCamera;
   }, [currentCamera]);
 
-  // The box holds what was searched for the scene being edited. Switching
-  // scenes without clearing it left the previous place sitting there, and
-  // typing appended to it.
-  useEffect(() => {
-    setQuery('');
-    setResults([]);
-    setError(null);
-    setIsOpen(false);
-  }, [selectedChapterId]);
-
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Both the timer and any in-flight request have to be cancelled on unmount,
-  // otherwise the fetch resolves against a component that is already gone.
-  useEffect(() => {
-    return () => {
+  // Both the timer and any request in flight are cancelled on unmount.
+  useEffect(
+    () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       requestRef.current?.abort();
-    };
-  }, []);
+    },
+    []
+  );
 
   const runSearch = useCallback(async (searchQuery: string) => {
+    requestRef.current?.abort();
     if (!searchQuery.trim() || !MAPBOX_TOKEN) {
       setResults([]);
+      setStatus('idle');
       return;
     }
 
     const coords = parseCoordinates(searchQuery);
     if (coords) {
-      setResults([{
-        id: 'coordinates',
-        label: `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`,
-        context: 'Coordinates',
-        center: coords,
-        zoom: 14,
-        isCoordinate: true,
-      }]);
-      setIsLoading(false);
-      setError(null);
+      setResults([
+        {
+          id: 'coordinates',
+          label: `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`,
+          context: 'Coordenadas escritas a mano',
+          center: coords,
+          zoom: 14,
+          isCoordinate: true,
+        },
+      ]);
+      setStatus('done');
+      setHighlight(0);
       return;
     }
 
-    requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
-
-    setIsLoading(true);
-    setError(null);
+    setStatus('loading');
 
     try {
-      setResults(
-        await searchPlaces(searchQuery, MAPBOX_TOKEN, {
-          near: [near.current.longitude, near.current.latitude],
-          signal: controller.signal,
-        })
-      );
+      const found = await searchPlaces(searchQuery, MAPBOX_TOKEN, {
+        near: [near.current.longitude, near.current.latitude],
+        signal: controller.signal,
+      });
+      setResults(found);
+      setHighlight(found.length ? 0 : -1);
+      setStatus('done');
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
-      setError('Failed to search locations');
       setResults([]);
-    } finally {
-      if (!controller.signal.aborted) setIsLoading(false);
+      setStatus('error');
     }
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleInputChange = (value: string) => {
     setQuery(value);
     setIsOpen(true);
-
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => runSearch(value), 300);
   };
 
-  const handleSelectResult = (result: Place) => {
+  const pick = (result: Place) => {
     if (!selectedChapterId) return;
-
     const [lng, lat] = result.center;
-    // Moving the marker without moving the camera left the reader looking at
-    // the whole country after picking a specific market.
+    // Moving the marker without the camera left the reader looking at the
+    // whole country after picking a specific market.
     updateChapter(selectedChapterId, { longitude: lng, latitude: lat, zoom: result.zoom });
-
     setQuery(result.label);
     setIsOpen(false);
     setResults([]);
+    setStatus('idle');
   };
 
-  const handleClear = () => {
-    setQuery('');
-    setResults([]);
-    setIsOpen(false);
-    inputRef.current?.focus();
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen || results.length === 0) {
+      if (e.key === 'Escape' && query) {
+        e.stopPropagation();
+        setQuery('');
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => (h + 1) % results.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => (h <= 0 ? results.length - 1 : h - 1));
+    } else if (e.key === 'Enter' && highlight >= 0) {
+      e.preventDefault();
+      pick(results[highlight]);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      setIsOpen(false);
+    }
   };
+
+  const showPanel = isOpen && query.trim() !== '' && status !== 'idle';
 
   return (
     <div ref={containerRef} className="relative">
-      <label
-        htmlFor="location-search"
-        className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2 block"
-      >
-        Search Location
+      <label htmlFor="location-search" className="block text-[13px] font-semibold text-ink-2 mb-1">
+        Lugar
       </label>
 
       <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Search className="w-4 h-4" aria-hidden="true" />
-          )}
-        </div>
-
+        <Search
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 pointer-events-none"
+          strokeWidth={1.75}
+          aria-hidden="true"
+        />
         <input
           id="location-search"
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={showPanel}
+          aria-controls={LIST_ID}
+          aria-autocomplete="list"
+          aria-activedescendant={showPanel && highlight >= 0 ? `place-${highlight}` : undefined}
+          aria-describedby="location-hint"
+          autoComplete="off"
           value={query}
-          onChange={handleInputChange}
+          onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => query && setIsOpen(true)}
-          placeholder="Search place or enter coordinates..."
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white/10 transition-all"
+          onKeyDown={onKeyDown}
+          placeholder="Busca un lugar o pega coordenadas"
+          className={`${fieldClass} pl-9 pr-9`}
         />
-
         {query && (
           <button
-            onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-            aria-label="Clear search"
+            onClick={() => {
+              setQuery('');
+              setResults([]);
+              setStatus('idle');
+              inputRef.current?.focus();
+            }}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-ink-3 hover:text-ink"
+            aria-label="Borrar la búsqueda"
           >
-            <X className="w-4 h-4" aria-hidden="true" />
+            <X className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
           </button>
         )}
       </div>
 
-      <AnimatePresence>
-        {isOpen && (results.length > 0 || error) && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-2 bg-slate-900 border border-white/15 rounded-xl shadow-2xl shadow-black/70 overflow-hidden"
-          >
-            {error ? (
-              <div className="px-4 py-3 text-sm text-red-400">{error}</div>
-            ) : (
-              <ul className="max-h-64 overflow-y-auto">
-                {results.map((result) => (
-                  <li key={result.id} className="border-b border-white/5 last:border-0">
-                    <button
-                      onClick={() => handleSelectResult(result)}
-                      className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-start gap-3 group"
-                    >
-                      <span className="mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        {result.isCoordinate ? (
-                          <Navigation className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-                        ) : (
-                          <MapPin className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
-                        )}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white truncate group-hover:text-indigo-300 transition-colors">
-                          {result.label}
-                        </p>
-                        {result.context && (
-                          <p className="text-[10px] text-slate-400 truncate">{result.context}</p>
-                        )}
-                        <p className="text-[10px] text-slate-600 mt-0.5 font-mono">
-                          {result.center[1].toFixed(4)}, {result.center[0].toFixed(4)}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showPanel && (
+        <div className="absolute z-50 w-full mt-1 bg-paper border border-ink rounded-[2px] overflow-hidden">
+          {status === 'loading' && <p className="px-3 py-2.5 text-[13px] text-ink-2">Buscando…</p>}
+          {status === 'error' && (
+            <p className="px-3 py-2.5 text-[13px] text-danger">
+              La búsqueda no respondió. Revisa la conexión, o pega las coordenadas del lugar.
+            </p>
+          )}
+          {status === 'done' && results.length === 0 && (
+            <p className="px-3 py-2.5 text-[13px] text-ink-2">
+              No hay lugares con ese nombre. Prueba con la comuna o la ciudad, o pega coordenadas.
+            </p>
+          )}
+          {status === 'done' && results.length > 0 && (
+            <ul id={LIST_ID} role="listbox" aria-label="Lugares encontrados" className="max-h-64 overflow-y-auto">
+              {results.map((result, i) => (
+                <li
+                  key={result.id}
+                  id={`place-${i}`}
+                  role="option"
+                  aria-selected={i === highlight}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(result)}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={`px-3 py-2 cursor-pointer border-b border-rule last:border-0 ${
+                    i === highlight ? 'bg-water-tint' : ''
+                  }`}
+                >
+                  <span className="block text-[14px] truncate">{result.label}</span>
+                  <span className="flex gap-2 text-[11px] text-ink-3">
+                    {result.context && <span className="truncate">{result.context}</span>}
+                    <span className="font-mono shrink-0 ml-auto">
+                      {result.center[1].toFixed(3)}, {result.center[0].toFixed(3)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
-      <p className="text-[10px] text-slate-600 mt-2">
-        Enter a place name or coordinates (e.g., -33.4489, -70.6693)
+      <p id="location-hint" className="text-[12px] text-ink-3 mt-1">
+        También puedes arrastrar el número de la escena sobre el mapa.
       </p>
     </div>
   );

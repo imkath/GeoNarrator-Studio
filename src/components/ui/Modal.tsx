@@ -1,69 +1,109 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
   title: string;
   subtitle?: string;
-  icon: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'lg';
 }
 
-/** Shared dialog chrome: backdrop, click-outside dismissal and header. */
-export default function Modal({
-  title,
-  subtitle,
-  icon,
-  onClose,
-  children,
-  footer,
-  size = 'lg',
-}: ModalProps) {
-  const titleId = `modal-${title.replace(/\s+/g, '-').toLowerCase()}`;
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Shared dialog: closes on Escape and on the backdrop, keeps Tab inside, and
+ * hands focus back to whatever opened it. Every dialog in the app goes through
+ * here, so none of them can forget one of the three.
+ */
+export default function Modal({ title, subtitle, onClose, children, footer, size = 'lg' }: ModalProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab' || !panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (items.length === 0) return;
+      const [head, tail] = [items[0], items[items.length - 1]];
+      if (e.shiftKey && document.activeElement === head) {
+        e.preventDefault();
+        tail.focus();
+      } else if (!e.shiftKey && document.activeElement === tail) {
+        e.preventDefault();
+        head.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      opener?.focus?.();
+    };
+  }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4"
+    <div
+      className="fixed inset-0 z-100 bg-ink/40 flex items-end sm:items-center justify-center sm:p-4 animate-[fade_150ms_ease-out]"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className={`bg-slate-900 border border-white/10 rounded-2xl w-full overflow-hidden shadow-2xl ${
-          size === 'sm' ? 'max-w-sm' : 'max-w-lg max-h-[80vh]'
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`bg-paper border border-ink rounded-t-[4px] sm:rounded-[4px] w-full flex flex-col max-h-[88vh] ${
+          size === 'sm' ? 'sm:max-w-sm' : 'sm:max-w-lg'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 p-4 border-b border-white/10">
-          {icon}
-          <div>
-            <h3 id={titleId} className="text-sm font-semibold text-white">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+        <div className="flex items-start gap-3 px-5 pt-4 pb-3 border-b border-rule">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-lg font-extrabold leading-tight">
+              {title}
+            </h2>
+            {subtitle && <p className="text-sm text-ink-2 mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="ml-auto p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
-            aria-label="Close dialog"
+            className="ml-auto -mr-2 p-2 rounded-[2px] text-ink-2 hover:text-ink hover:bg-paper-2"
+            aria-label="Cerrar"
           >
-            <X className="w-4 h-4" aria-hidden="true" />
+            <X className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
 
-        {children}
+        <div className="overflow-y-auto">{children}</div>
 
-        {footer && <div className="p-4 border-t border-white/10 flex gap-2">{footer}</div>}
-      </motion.div>
-    </motion.div>
+        {footer && <div className="px-5 py-3 border-t border-rule flex flex-wrap gap-2 justify-end">{footer}</div>}
+      </div>
+    </div>
   );
 }
+
+/** Button styles shared by dialogs, so every confirm reads the same. */
+export const btn = {
+  primary:
+    'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[2px] bg-water text-paper text-sm font-semibold hover:bg-water-strong disabled:opacity-50',
+  secondary:
+    'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[2px] border border-ink text-ink text-sm font-semibold hover:bg-paper-2',
+  danger:
+    'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[2px] bg-danger text-paper text-sm font-semibold hover:brightness-90',
+};

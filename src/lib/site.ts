@@ -1,12 +1,10 @@
-// The public URL depends on where this is deployed. Vercel exposes
-// VERCEL_PROJECT_PRODUCTION_URL; locally it falls back to localhost.
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3000");
+// The public URL comes from the build environment; locally it falls back to
+// localhost so metadata still resolves.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-export const SITE_NAME = "GeoNarrator Studio";
-export const SITE_TITLE = "GeoNarrator Studio | 3D scrollytelling map editor";
+export const SITE_NAME = 'GeoNarrator Studio';
+export const SITE_TITLE = 'GeoNarrator Studio: historias sobre mapas 3D';
 export const SITE_DESCRIPTION =
-  "Visual editor for map-driven stories: every scene stores a camera position and the map flies between them as the reader scrolls. Built on Mapbox GL.";
+  'Un editor para contar una historia sobre un mapa 3D. Cada escena guarda un texto y un encuadre de cámara, y al hacer scroll el mapa vuela de una a otra. Sin cuentas ni servidor.';
+export const REPO_URL = 'https://github.com/imkath/GeoNarrator-Studio';
+export const AUTHOR_URL = 'https://nvrkth.com';

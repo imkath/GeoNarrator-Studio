@@ -1,38 +1,37 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { AlertTriangle, Check, Code2, Copy, Download, FileJson, RotateCcw } from 'lucide-react';
-import Modal from './Modal';
+import { Check, Copy, Download } from 'lucide-react';
+import Modal, { btn } from './Modal';
 import { MAX_EMBED_URL_LENGTH } from '@/lib/story-codec';
 
 const FIELDS: [string, string][] = [
-  ['id', 'Unique identifier for each scene'],
-  ['title', 'Scene title (max 100 chars)'],
-  ['content', 'Narrative text (max 1000 chars)'],
-  ['longitude', '-180 to 180'],
-  ['latitude', '-90 to 90'],
-  ['zoom', '1-20 (world to street level)'],
-  ['pitch', '0-85 (camera tilt)'],
-  ['bearing', '-180 to 180 (rotation)'],
-  ['mapStyle', 'dark, satellite, streets, outdoors, light'],
+  ['id', 'identificador único de la escena'],
+  ['title', 'título, hasta 100 caracteres'],
+  ['content', 'texto de la escena, hasta 1.000 caracteres'],
+  ['longitude', 'de -180 a 180'],
+  ['latitude', 'de -85 a 85'],
+  ['zoom', 'de 1 (el mundo) a 20 (un edificio)'],
+  ['pitch', 'inclinación, de 0 a 85 grados'],
+  ['bearing', 'rotación, de -180 a 180 grados'],
+  ['mapStyle', 'satellite, outdoors, streets, light o dark'],
 ];
 
 const EXAMPLE = `{
+  "projectName": "Mi historia",
+  "mapStyle": "satellite",
   "chapters": [
     {
-      "id": "unique-id",
-      "title": "Scene Title",
-      "content": "Narrative text...",
-      "longitude": -70.6693,
-      "latitude": -33.4489,
-      "zoom": 10,
-      "pitch": 45,
-      "bearing": 0
+      "id": "escena-1",
+      "title": "Plaza de Armas",
+      "content": "El punto cero de Santiago.",
+      "longitude": -70.6506,
+      "latitude": -33.4372,
+      "zoom": 16,
+      "pitch": 55,
+      "bearing": 20
     }
-  ],
-  "mapStyle": "dark",
-  "version": "1.0.0"
+  ]
 }`;
 
 export function ImportHelpModal({
@@ -44,104 +43,70 @@ export function ImportHelpModal({
 }) {
   return (
     <Modal
-      title="Import Format"
-      subtitle="JSON file structure"
-      icon={
-        <div className="p-2 bg-indigo-500/20 rounded-lg">
-          <FileJson className="w-5 h-5 text-indigo-400" aria-hidden="true" />
-        </div>
-      }
+      title="Formato para importar"
+      subtitle="Un archivo JSON con la lista de escenas"
       onClose={onClose}
       footer={
         <>
+          <button onClick={onClose} className={btn.secondary}>
+            Cerrar
+          </button>
           <button
             onClick={() => {
               onDownloadExample();
               onClose();
             }}
-            className="flex-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className={btn.primary}
           >
-            <Download className="w-3.5 h-3.5" aria-hidden="true" />
-            Download example
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium rounded-lg transition-colors"
-          >
-            Close
+            <Download className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            Descargar el proyecto abierto
           </button>
         </>
       }
     >
-      <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-          <p className="text-xs text-amber-300">
-            The quickest way is to export an existing project and use it as a template.
-          </p>
-        </div>
+      <div className="px-5 py-4 space-y-4">
+        <p className="text-sm text-ink-2">
+          Lo más rápido es exportar un proyecto y usarlo de plantilla. Las capas de datos viajan en el mismo
+          archivo cuando se exportan desde aquí.
+        </p>
 
-        <div>
-          <h4 className="text-xs font-semibold text-slate-300 mb-2">Required structure</h4>
-          <pre className="bg-black/40 rounded-lg p-3 text-[11px] text-slate-300 overflow-x-auto border border-white/5">
-            {EXAMPLE}
-          </pre>
-        </div>
+        <pre className="bg-paper-2 rounded-[2px] p-3 font-mono text-[12px] leading-relaxed overflow-x-auto">
+          {EXAMPLE}
+        </pre>
 
-        <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-slate-300">Fields</h4>
-          <div className="space-y-1.5 text-[11px]">
-            {FIELDS.map(([field, description]) => (
-              <div key={field} className="flex gap-2">
-                <code className="text-indigo-400 shrink-0">{field}</code>
-                <span className="text-slate-400">{description}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
+          {FIELDS.map(([field, description]) => (
+            <div key={field} className="contents">
+              <dt className="font-mono text-water">{field}</dt>
+              <dd className="text-ink-2">{description}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </Modal>
   );
 }
 
-export function ResetConfirmModal({
-  onClose,
-  onConfirm,
-}: {
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
+export function ResetConfirmModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
   return (
     <Modal
-      title="Reset Project"
-      subtitle="Restores the default project"
+      title="¿Volver al proyecto de ejemplo?"
       size="sm"
-      icon={
-        <div className="p-2 bg-amber-500/20 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-amber-400" aria-hidden="true" />
-        </div>
-      }
       onClose={onClose}
       footer={
         <>
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors"
-          >
-            Cancel
+          <button onClick={onClose} className={btn.secondary} data-autofocus>
+            Cancelar
           </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <RotateCcw className="w-4 h-4" aria-hidden="true" />
-            Reset
+          <button onClick={onConfirm} className={btn.danger}>
+            Borrar y volver al ejemplo
           </button>
         </>
       }
     >
-      <div className="p-4">
-        <p className="text-sm text-slate-300">All unsaved changes will be lost.</p>
-      </div>
+      <p className="px-5 py-4 text-sm text-ink-2">
+        Se borran todas las escenas y capas de este proyecto. Si quieres conservarlo, exporta el JSON antes.
+      </p>
     </Modal>
   );
 }
@@ -159,89 +124,90 @@ export function EmbedModal({
   embedCode: string;
   droppedLayers: string[];
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
   const tooLong = embedUrl.length > MAX_EMBED_URL_LENGTH;
 
-  const copy = async () => {
+  const copy = async (text: string, what: 'code' | 'link') => {
     try {
-      await navigator.clipboard.writeText(embedCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+      setCopyFailed(false);
+      setTimeout(() => setCopied(null), 2000);
     } catch {
-      setCopied(false);
+      setCopyFailed(true);
     }
   };
 
   return (
     <Modal
-      title="Embed Your Story"
-      subtitle="Paste this code on any website"
-      icon={
-        <div className="p-2 bg-indigo-500/20 rounded-lg">
-          <Code2 className="w-5 h-5 text-indigo-400" aria-hidden="true" />
-        </div>
-      }
+      title="Incrustar la historia"
+      subtitle={`Las ${sceneCount} escenas viajan dentro del enlace. No hay servidor de por medio.`}
       onClose={onClose}
       footer={
         <>
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={copy}
-            className="flex-1 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            {copied ? <Check className="w-4 h-4" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
-            {copied ? 'Copied' : 'Copy embed code'}
-          </motion.button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium rounded-lg transition-colors"
-          >
-            Close
+          <button onClick={() => copy(embedUrl, 'link')} className={btn.secondary}>
+            {copied === 'link' ? (
+              <Check className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <Copy className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            )}
+            {copied === 'link' ? 'Enlace copiado' : 'Copiar el enlace'}
+          </button>
+          <button onClick={() => copy(embedCode, 'code')} className={btn.primary} data-autofocus>
+            {copied === 'code' ? (
+              <Check className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <Copy className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            )}
+            {copied === 'code' ? 'Código copiado' : 'Copiar el código'}
           </button>
         </>
       }
     >
-      <div className="p-4 space-y-4">
-        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3">
-          <p className="text-xs text-indigo-300">
-            The embed carries all {sceneCount} scenes inside the URL itself.
-          </p>
-        </div>
-
+      <div className="px-5 py-4 space-y-3">
         {droppedLayers.length > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3" role="alert">
-            <p className="text-xs text-amber-300">
-              These layers do not fit in a URL and were left out of the embed:{' '}
-              {droppedLayers.join(', ')}. Export the project as JSON to share them.
-            </p>
-          </div>
+          <p className="text-[13px] bg-caution-tint text-caution rounded-[2px] px-3 py-2" role="alert">
+            {droppedLayers.length === 1 ? 'La capa' : 'Las capas'} {droppedLayers.join(', ')} no{' '}
+            {droppedLayers.length === 1 ? 'cabe' : 'caben'} en un enlace y quedaron fuera. Para compartirlas,
+            exporta el proyecto como JSON.
+          </p>
         )}
 
         {tooLong && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3" role="alert">
-            <p className="text-xs text-amber-300">
-              This URL is {embedUrl.length} characters long. Past {MAX_EMBED_URL_LENGTH} some
-              browsers and servers truncate it, so exporting the JSON and serving it separately
-              is safer.
-            </p>
-          </div>
+          <p className="text-[13px] bg-caution-tint text-caution rounded-[2px] px-3 py-2" role="alert">
+            El enlace mide {embedUrl.length.toLocaleString('es-CL')} caracteres. Pasados los{' '}
+            {MAX_EMBED_URL_LENGTH.toLocaleString('es-CL')}, algunos navegadores y servidores lo cortan. Acortar
+            los textos ayuda.
+          </p>
         )}
 
-        <pre className="bg-black/40 rounded-lg p-4 text-[11px] text-slate-300 overflow-x-auto border border-white/5 whitespace-pre-wrap break-all">
-          {embedCode}
-        </pre>
+        {copyFailed && (
+          <p className="text-[13px] bg-danger-tint text-danger rounded-[2px] px-3 py-2" role="alert">
+            El navegador no dejó copiar. Selecciona el código y cópialo a mano.
+          </p>
+        )}
 
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Preview:</span>
-          <a
-            href={embedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 truncate max-w-[300px]"
-          >
-            Open in a new tab
-          </a>
-        </div>
+        <label htmlFor="embed-code" className="block font-mono text-[11px] text-ink-3">
+          Código para pegar en tu sitio
+        </label>
+        <textarea
+          id="embed-code"
+          readOnly
+          value={embedCode}
+          onFocus={(e) => e.currentTarget.select()}
+          rows={7}
+          className="w-full bg-paper-2 rounded-[2px] p-3 font-mono text-[12px] leading-relaxed resize-none break-all"
+        />
+
+        <a
+          href={embedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm font-semibold text-water underline underline-offset-4 hover:text-water-strong"
+        >
+          Ver cómo queda<span className="sr-only"> (se abre en una pestaña nueva)</span>
+        </a>
       </div>
     </Modal>
   );

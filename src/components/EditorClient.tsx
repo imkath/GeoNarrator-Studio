@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 // client differs from the server HTML and React reports a hydration mismatch.
 const GeoNarratorStudio = dynamic(() => import('@/components/GeoNarratorStudio'), {
   ssr: false,
-  loading: () => <div className="h-screen bg-slate-950" />,
+  loading: () => <div className="h-dvh bg-paper" />,
 });
 
 export default function EditorClient() {

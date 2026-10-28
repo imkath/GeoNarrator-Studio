@@ -1,130 +1,155 @@
 @import "tailwindcss";
 
+/* Tokens por rol. El razonamiento de cada uno está en DESIGN.md. */
 :root {
-  --background: #030712;
-  --foreground: #f8fafc;
+  --paper: #ffffff;
+  --paper-2: #f1f3f5;
+  --ink: #14181d;
+  --ink-2: #47505a;
+  --ink-3: #646d77;
+  --rule: #d6dbe0;
+  --water: #1a5c96;
+  --water-strong: #134a7a;
+  --water-tint: #e8f0f7;
+  --contour: #a8561c;
+  --danger: #b42318;
+  --danger-tint: #fdecea;
+  --caution: #7a4f00;
+  --caution-tint: #fff6e0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-water: var(--water);
+  --color-water-strong: var(--water-strong);
+  --color-water-tint: var(--water-tint);
+  --color-contour: var(--contour);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-caution: var(--caution);
+  --color-caution-tint: var(--caution-tint);
+  --font-sans: var(--font-overpass), system-ui, sans-serif;
+  --font-mono: var(--font-overpass-mono), ui-monospace, monospace;
+  --radius-ctl: 2px;
+  --radius-panel: 4px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.font-mono,
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Hide mapbox logo and attribution */
-.mapboxgl-ctrl-logo,
-.mapboxgl-ctrl-attrib {
-  display: none !important;
-}
-
-/* Mapbox navigation control styling */
-.mapboxgl-ctrl-group {
-  background: rgba(0, 0, 0, 0.6) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-}
-
-.mapboxgl-ctrl-group button {
-  background: transparent !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-.mapboxgl-ctrl-group button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-.mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
-  filter: invert(1);
-}
-
-/* Selection styles */
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
-  color: white;
+  background: var(--water-tint);
+  color: var(--ink);
 }
 
-/* Focus visible styles */
 :focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.5);
+  outline: 2px solid var(--water);
   outline-offset: 2px;
 }
 
-/* Smooth animations */
-@media (prefers-reduced-motion: no-preference) {
-  * {
-    scroll-behavior: smooth;
+/* Todo lo que se presiona lo dice con el cursor. */
+button:not(:disabled),
+[role='button'],
+label[for],
+select,
+summary {
+  cursor: pointer;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Slider de cámara: la pista es una regla de escala, el tirador un rombo. */
+.ruler-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+}
+.ruler-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--ink);
+}
+.ruler-range::-moz-range-track {
+  height: 2px;
+  background: var(--ink);
+}
+.ruler-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  background: var(--paper);
+  border: 2px solid var(--water);
+  transform: rotate(45deg);
+  cursor: grab;
+}
+.ruler-range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+  border: 2px solid var(--water);
+  border-radius: 0;
+  transform: rotate(45deg);
+  cursor: grab;
+}
+.ruler-range:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  background: var(--water);
+}
+
+/* Mapbox exige mostrar su logo y la atribución de los datos. Se dejan
+   visibles, compactos y con la tipografía del sitio. */
+.mapboxgl-ctrl-attrib {
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+.mapboxgl-ctrl-group {
+  border-radius: var(--radius-panel) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--ink) !important;
+}
+.mapboxgl-ctrl-group button {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-/* Noise texture overlay (subtle) */
-.noise-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.015;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-}
-
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #f472b6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass morphism utility */
-.glass {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Glow effects */
-.glow-indigo {
-  box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
-}
-
-.glow-emerald {
-  box-shadow: 0 0 40px rgba(16, 185, 129, 0.15);
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

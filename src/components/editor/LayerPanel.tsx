@@ -1,29 +1,63 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, Eye, EyeOff, Layers3, Trash2, Upload } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Trash2, Upload } from 'lucide-react';
 import { useStoryStore } from '@/store/useStoryStore';
-import { boundsOf, GeoJSONError, layerWeight, parseGeoJSON } from '@/lib/geojson';
+import { boundsOf, GeoJSONError, layerWeight, parseGeoJSON, type ParsedGeoJSON } from '@/lib/geojson';
 import type { DataLayer } from '@/types';
 
-const PALETTE = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#38bdf8', '#f43f5e'];
+/**
+ * Flat colours and ramps taken from topographic map conventions: water,
+ * contour, vegetation, road, lettering. Ramps run light to dark so the low
+ * end of a value reads as "less" on any base map.
+ */
+const PALETTE = [
+  { color: '#1a5c96', name: 'azul' },
+  { color: '#a8561c', name: 'siena' },
+  { color: '#2f7d4f', name: 'verde' },
+  { color: '#c0392b', name: 'rojo' },
+  { color: '#14181d', name: 'negro' },
+];
 const RAMPS: [string, string][] = [
-  ['#312e81', '#a5b4fc'],
-  ['#701a75', '#f0abfc'],
-  ['#064e3b', '#6ee7b7'],
-  ['#7c2d12', '#fdba74'],
+  ['#d3e4f2', '#0d3d66'],
+  ['#f6e2c6', '#7a3a0c'],
+  ['#d9eedd', '#1d5a35'],
+  ['#f6d5cf', '#7d1d12'],
 ];
 
 /** Beyond this the browser starts to feel it; the panel says so up front. */
 const HEAVY_FEATURE_COUNT = 5000;
+/** localStorage holds about 5 MB, and URLs far less. */
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
-export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, number, number, number]) => void }) {
+function parseOffThread(text: string): Promise<ParsedGeoJSON> {
+  if (typeof Worker === 'undefined') return Promise.resolve(parseGeoJSON(text));
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../../lib/geojson.worker.ts', import.meta.url));
+    worker.onmessage = (e: MessageEvent<{ ok: boolean; parsed?: ParsedGeoJSON; error?: string }>) => {
+      worker.terminate();
+      if (e.data.ok && e.data.parsed) resolve(e.data.parsed);
+      else reject(new GeoJSONError(e.data.error ?? 'No se pudo leer el archivo.'));
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      // A worker that cannot start is not the file's fault: parse here.
+      try {
+        resolve(parseGeoJSON(text));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    worker.postMessage(text);
+  });
+}
+
+export default function LayerPanel() {
   const inputId = useId();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [justFramed, setJustFramed] = useState<string | null>(null);
 
   const {
     layers,
@@ -31,39 +65,48 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
     selectedChapterId,
     addLayer,
     removeLayer,
+    renameLayer,
     updateLayerStyle,
     toggleLayerInChapter,
     isLayerVisibleIn,
+    setPendingBounds,
   } = useStoryStore();
 
   const selectedChapter = chapters.find((c) => c.id === selectedChapterId);
+  const sceneNumber = selectedChapter ? chapters.indexOf(selectedChapter) + 1 : 0;
 
   const ingest = async (file: File) => {
     setError(null);
+    setJustFramed(null);
+    if (file.size > MAX_FILE_BYTES) {
+      setError('El archivo pesa más de 25 MB. Simplifícalo (por ejemplo, en mapshaper.org) y vuelve a cargarlo.');
+      return;
+    }
     setBusy(true);
     try {
-      const parsed = parseGeoJSON(await file.text());
-      const index = layers.length % PALETTE.length;
+      const parsed = await parseOffThread(await file.text());
+      const index = layers.length;
       const [rampFrom, rampTo] = RAMPS[index % RAMPS.length];
+      const name = file.name.replace(/\.(geo)?json$/i, '');
 
       const layer: DataLayer = {
         id: `layer-${Date.now()}`,
-        name: file.name.replace(/\.(geo)?json$/i, ''),
+        name,
         collection: parsed.collection,
         geometryKinds: [...parsed.geometryKinds],
         numericProperties: parsed.numericProperties,
         featureCount: parsed.featureCount,
-        style: { color: PALETTE[index], opacity: 0.7, rampFrom, rampTo },
+        style: { color: PALETTE[index % PALETTE.length].color, opacity: 0.75, rampFrom, rampTo },
       };
 
       addLayer(layer);
-
       const bounds = boundsOf(parsed.collection);
-      if (bounds && onFlyTo) onFlyTo(bounds);
+      if (bounds) {
+        setPendingBounds(bounds);
+        setJustFramed(name);
+      }
     } catch (err) {
-      setError(
-        err instanceof GeoJSONError ? err.message : 'Could not read the file'
-      );
+      setError(err instanceof GeoJSONError ? err.message : 'No se pudo leer el archivo.');
     } finally {
       setBusy(false);
     }
@@ -71,13 +114,7 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
 
   return (
     <div>
-      <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-        <Layers3 className="w-3 h-3" aria-hidden="true" />
-        Data Layers
-      </h3>
-
       <div
-        ref={dropRef}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -89,8 +126,8 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
           const file = e.dataTransfer.files?.[0];
           if (file) ingest(file);
         }}
-        className={`rounded-xl border border-dashed p-4 text-center transition-colors ${
-          dragging ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-white/10 bg-white/[0.02]'
+        className={`rounded-[2px] border border-dashed px-3 py-4 text-center transition-colors ${
+          dragging ? 'border-water bg-water-tint' : 'border-ink-3'
         }`}
       >
         <input
@@ -106,89 +143,79 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
         />
         <label
           htmlFor={inputId}
-          className="inline-flex items-center gap-2 text-xs font-medium text-indigo-300 hover:text-white cursor-pointer"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-water hover:text-water-strong"
         >
-          <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-          {busy ? 'Reading…' : 'Load GeoJSON'}
+          <Upload className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+          {busy ? 'Leyendo el archivo…' : 'Cargar un GeoJSON'}
         </label>
-        <p className="text-[10px] text-slate-600 mt-1">or drop the file here</p>
+        <p className="text-[12px] text-ink-3 mt-0.5">o suéltalo aquí. Puntos, líneas o polígonos.</p>
       </div>
 
       {error && (
-        <p className="mt-2 text-[10px] text-red-400 flex items-start gap-1.5" role="alert">
-          <AlertCircle className="w-3 h-3 mt-px shrink-0" aria-hidden="true" />
+        <p className="mt-2 text-[13px] text-danger" role="alert">
           {error}
         </p>
       )}
+      {justFramed && !error && (
+        <p className="mt-2 text-[13px] text-ink-2" role="status">
+          El mapa muestra «{justFramed}». Si esta escena debe verse así, guarda la vista en Cámara.
+        </p>
+      )}
 
-      <div className="mt-3 space-y-2">
-        <AnimatePresence initial={false}>
+      {layers.length === 0 ? (
+        <p className="mt-3 text-[13px] text-ink-2 leading-relaxed">
+          Una capa se dibuja en todas las escenas, y cada escena puede ocultarla. Así la historia revela
+          datos en vez de solo mover la cámara. Si el archivo trae números (población, puestos, votos), el
+          color puede seguirlos.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2">
           {layers.map((layer) => {
             const visible = selectedChapter ? isLayerVisibleIn(selectedChapter, layer.id) : true;
             const numericKeys = Object.keys(layer.numericProperties);
+            const tooHeavyForLink = layerWeight(layer) > 400_000;
 
             return (
-              <motion.div
-                key={layer.id}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0 }}
-                className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => selectedChapter && toggleLayerInChapter(selectedChapter.id, layer.id)}
-                    className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                    aria-label={`${visible ? 'Hide' : 'Show'} ${layer.name} in this scene`}
-                    aria-pressed={visible}
-                  >
-                    {visible ? (
-                      <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-                    ) : (
-                      <EyeOff className="w-3.5 h-3.5 opacity-50" aria-hidden="true" />
-                    )}
-                  </button>
-
+              <li key={layer.id} className="border border-rule rounded-[4px] p-3 space-y-3">
+                <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium truncate ${visible ? 'text-white' : 'text-slate-500'}`}>
-                      {layer.name}
-                    </p>
-                    <p className="text-[9px] text-slate-500">
-                      {layer.featureCount.toLocaleString()} features
-                      {layer.featureCount > HEAVY_FEATURE_COUNT && ' · heavy layer'}
+                    <label className="sr-only" htmlFor={`${layer.id}-name`}>
+                      Nombre de la capa
+                    </label>
+                    <input
+                      id={`${layer.id}-name`}
+                      value={layer.name}
+                      onChange={(e) => renameLayer(layer.id, e.target.value.slice(0, 100))}
+                      className="w-full text-[14px] font-semibold bg-transparent rounded-[2px] -mx-1 px-1 border border-transparent hover:border-rule focus:border-water focus:outline-none"
+                    />
+                    <p className="font-mono text-[11px] text-ink-3">
+                      {layer.featureCount.toLocaleString('es-CL')} elementos
+                      {layer.featureCount > HEAVY_FEATURE_COUNT && ' · pesada, puede ir lenta'}
                     </p>
                   </div>
-
                   <button
                     onClick={() => removeLayer(layer.id)}
-                    className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    aria-label={`Delete layer ${layer.name}`}
+                    className="p-1.5 -mr-1.5 rounded-[2px] text-ink-3 hover:text-danger"
+                    aria-label={`Borrar la capa ${layer.name}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    <Trash2 className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  {PALETTE.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => updateLayerStyle(layer.id, { color, property: undefined, range: undefined })}
-                      className={`w-4 h-4 rounded-full border transition-transform hover:scale-110 ${
-                        layer.style.color === color && !layer.style.property
-                          ? 'border-white'
-                          : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      aria-label={`Color ${color}`}
-                    />
-                  ))}
-                </div>
+                <label className="flex items-center gap-2 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    disabled={!selectedChapter}
+                    onChange={() => selectedChapter && toggleLayerInChapter(selectedChapter.id, layer.id)}
+                    className="w-4 h-4 accent-[var(--water)]"
+                  />
+                  Visible en la escena {sceneNumber}
+                </label>
 
                 {numericKeys.length > 0 && (
                   <label className="block">
-                    <span className="text-[9px] text-slate-500 uppercase tracking-wider">
-                      Colour by
-                    </span>
+                    <span className="text-[13px] font-semibold text-ink-2">Color</span>
                     <select
                       value={layer.style.property ?? ''}
                       onChange={(e) => {
@@ -198,21 +225,41 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                           range: property ? layer.numericProperties[property] : undefined,
                         });
                       }}
-                      className="mt-1 w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:border-indigo-500/50 focus:outline-none"
+                      className="mt-1 w-full bg-paper border border-rule rounded-[2px] px-2 py-1.5 text-[14px] focus:border-water focus:outline-none"
                     >
-                      <option value="">Flat colour</option>
+                      <option value="">Un solo color</option>
                       {numericKeys.map((key) => (
                         <option key={key} value={key}>
-                          {key}
+                          Según {key}
                         </option>
                       ))}
                     </select>
                   </label>
                 )}
 
+                {!layer.style.property && (
+                  <div className="flex items-center gap-1.5" role="radiogroup" aria-label={`Color de ${layer.name}`}>
+                    {PALETTE.map(({ color, name }) => {
+                      const on = layer.style.color === color;
+                      return (
+                        <button
+                          key={color}
+                          role="radio"
+                          aria-checked={on}
+                          aria-label={name}
+                          onClick={() => updateLayerStyle(layer.id, { color })}
+                          className={`w-6 h-6 rounded-full border-2 ${on ? 'border-ink' : 'border-paper'}`}
+                          style={{ backgroundColor: color, boxShadow: on ? '0 0 0 1px var(--paper) inset' : undefined }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
                 <label className="block">
-                  <span className="text-[9px] text-slate-500 uppercase tracking-wider">
-                    Opacity {Math.round(layer.style.opacity * 100)}%
+                  <span className="flex justify-between text-[13px] font-semibold text-ink-2">
+                    Opacidad
+                    <span className="font-mono font-normal text-ink-3">{Math.round(layer.style.opacity * 100)}%</span>
                   </span>
                   <input
                     type="range"
@@ -221,28 +268,20 @@ export default function LayerPanel({ onFlyTo }: { onFlyTo?: (bounds: [number, nu
                     step={0.05}
                     value={layer.style.opacity}
                     onChange={(e) => updateLayerStyle(layer.id, { opacity: parseFloat(e.target.value) })}
-                    className="w-full mt-1 accent-indigo-500"
-                    aria-label={`Opacity of ${layer.name}`}
+                    className="ruler-range"
                   />
                 </label>
 
-                {layerWeight(layer) > 400_000 && (
-                  <p className="text-[9px] text-amber-400/80">
-                    This layer does not fit in the embed link. Export the JSON to share it.
+                {tooHeavyForLink && (
+                  <p className="text-[12px] text-caution">
+                    No cabe en el enlace para incrustar. Para compartirla, exporta el JSON.
                   </p>
                 )}
-              </motion.div>
+              </li>
             );
           })}
-        </AnimatePresence>
-
-        {layers.length === 0 && (
-          <p className="text-[10px] text-slate-600 leading-relaxed">
-            A layer is drawn on every scene. Each scene can hide it, so the story reveals
-            data instead of only moving the camera.
-          </p>
-        )}
-      </div>
+        </ul>
+      )}
     </div>
   );
 }

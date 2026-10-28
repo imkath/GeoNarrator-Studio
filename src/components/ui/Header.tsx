@@ -1,29 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStoryStore, ProjectData } from '@/store/useStoryStore';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Edit3,
-  MonitorPlay,
-  Save,
-  Download,
-  Upload,
-  Check,
-  AlertCircle,
-  RotateCcw,
-  HelpCircle,
-  X,
-  Menu,
-  Code2,
-  BookOpen,
-} from 'lucide-react';
+import { Download, Upload, RotateCcw, CircleHelp, X, Menu, Code2, BookOpen } from 'lucide-react';
 import Logo from './Logo';
 import { EmbedModal, ImportHelpModal, ResetConfirmModal } from './HeaderModals';
 import ExamplesModal from './ExamplesModal';
 import { buildEmbed } from '@/lib/story-codec';
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error';
 interface Toast {
   id: number;
   message: string;
@@ -33,6 +18,16 @@ interface Toast {
 type Dialog = 'import-help' | 'reset' | 'embed' | 'examples' | null;
 
 const IMPORT_INPUT_ID = 'import-project-file';
+let toastSeq = 0;
+
+const slugify = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
 
 export default function Header() {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -45,10 +40,9 @@ export default function Header() {
     chapters,
     mapStyle,
     layers,
+    projectName,
+    storageError,
     setActiveChapterId,
-    hasUnsavedChanges,
-    lastSaved,
-    saveProject,
     loadProject,
     exportProject,
     resetToDefault,
@@ -56,26 +50,21 @@ export default function Header() {
   } = useStoryStore();
 
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowMobileMenu(false);
-        setDialog(null);
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+    if (!showMobileMenu) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setShowMobileMenu(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showMobileMenu]);
+
+  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+    const id = ++toastSeq;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), type === 'error' ? 6000 : 3000);
   }, []);
 
-  const showToast = (message: string, type: ToastType = 'info') => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
-  };
-
-  const handleSave = () => {
-    saveProject();
-    showToast('Project saved', 'success');
-  };
+  useEffect(() => {
+    if (storageError) showToast(storageError, 'error');
+  }, [storageError, showToast]);
 
   const handleExport = () => {
     const data = exportProject();
@@ -83,19 +72,12 @@ export default function Header() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    // Named after the story, so a folder of exports is readable. Accents and
-    // punctuation are stripped because this becomes a filename.
-    const slug = (data.projectName ?? '')
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 60);
-    a.download = `${slug || 'geonarrator'}-${data.exportedAt.slice(0, 10)}.json`;
+    // Named after the story, so a folder of exports is readable.
+    a.download = `${slugify(data.projectName ?? '') || 'geonarrator'}-${data.exportedAt.slice(0, 10)}.json`;
     a.click();
-    URL.revokeObjectURL(url);
-    showToast('Project exported', 'success');
+    // Revoking in the same tick cancelled the download in Firefox.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Proyecto exportado');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,325 +86,240 @@ export default function Header() {
     if (!file) return;
 
     const reader = new FileReader();
+    reader.onerror = () => showToast('No se pudo leer el archivo.', 'error');
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string) as ProjectData;
         const result = loadProject(data);
         showToast(
-          result.success ? 'Project loaded' : result.error ?? 'Could not load project',
+          result.success ? 'Proyecto cargado' : result.error ?? 'No se pudo cargar el proyecto.',
           result.success ? 'success' : 'error'
         );
       } catch {
-        showToast('Invalid JSON file. Check the format with the ? icon.', 'error');
+        showToast('El archivo no es un JSON válido. El formato está en la ayuda de importar.', 'error');
       }
     };
     reader.readAsText(file);
   };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const embed = buildEmbed({ chapters, mapStyle, layers }, `${origin}/embed?data=`.length);
-  const embedUrl = `${origin}/embed?data=${embed.encoded}`;
+  const embedBase = `${origin}/embed?data=`;
+  const embed =
+    dialog === 'embed' ? buildEmbed({ chapters, mapStyle, layers, name: projectName }, embedBase.length) : null;
+  const embedUrl = embed ? `${embedBase}${embed.encoded}` : '';
   const embedCode = `<iframe
   src="${embedUrl}"
+  title="${(projectName || 'Historia sobre un mapa').replace(/"/g, '&quot;')}"
   width="100%"
   height="600"
-  style="border: none; border-radius: 12px;"
+  style="border: 0"
+  loading="lazy"
   allowfullscreen
 ></iframe>`;
 
-  // A fixed time rather than "5m ago": relative labels read the clock during
-  // render and then sit frozen until something else triggers a re-render.
-  const formatLastSaved = (isoString: string | null) => {
-    if (!isoString) return 'Never saved';
-    const date = new Date(isoString);
-    return `Saved ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  };
-
   const actions = [
-    { label: 'Examples', icon: BookOpen, run: () => setDialog('examples') },
-    { label: 'Export', icon: Download, run: handleExport },
-    { label: 'Embed', icon: Code2, run: () => setDialog('embed') },
-    { label: 'Reset', icon: RotateCcw, run: () => setDialog('reset') },
+    { label: 'Ejemplos', icon: BookOpen, run: () => setDialog('examples') },
+    { label: 'Exportar', icon: Download, run: handleExport },
+    { label: 'Incrustar', icon: Code2, run: () => setDialog('embed') },
   ];
+
+  const ghost =
+    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-[13px] font-semibold text-ink-2 hover:text-ink hover:bg-paper-2';
 
   return (
     <>
-      {/* One input for desktop and mobile, opened through a label. Two inputs
-          sharing a single ref meant the desktop button opened the mobile one. */}
+      {/* One input for desktop and mobile, opened through a label. */}
       <input
         id={IMPORT_INPUT_ID}
         type="file"
         accept=".json,application/json"
         onChange={handleFileChange}
         className="sr-only"
+        tabIndex={-1}
       />
 
-      <motion.header
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-        className="h-16 bg-slate-950/80 backdrop-blur-2xl border-b border-white/5 grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 sm:px-6 z-50 fixed top-0 w-full"
-        role="banner"
-      >
-        <Logo />
+      <header className="h-14 bg-paper border-b border-ink grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 sm:px-5 z-50 fixed top-0 w-full">
+        <Logo compact />
 
         <div className="flex justify-center min-w-0">
-          <nav className="flex bg-white/5 rounded-xl p-1 border border-white/5" role="tablist" aria-label="Editor mode">
+          <div className="flex border border-ink rounded-[2px] overflow-hidden" role="tablist" aria-label="Modo">
             {(
               [
-                { value: 'edit', label: 'EDITOR', short: 'EDIT', icon: Edit3 },
-                { value: 'preview', label: 'PREVIEW', short: 'PREVIEW', icon: MonitorPlay },
+                { value: 'edit', label: 'Editar' },
+                { value: 'preview', label: 'Vista previa' },
               ] as const
-            ).map(({ value, label, short, icon: Icon }) => (
-              <motion.button
+            ).map(({ value, label }) => (
+              <button
                 key={value}
                 role="tab"
                 aria-selected={mode === value}
                 onClick={() => {
-                  setMode(value);
                   if (value === 'preview') setActiveChapterId(chapters[0].id);
+                  setMode(value);
                 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                  mode === value ? 'text-white' : 'text-slate-400 hover:text-white'
+                className={`px-3 sm:px-4 py-1.5 text-[13px] font-semibold transition-colors ${
+                  mode === value ? 'bg-ink text-paper' : 'text-ink hover:bg-paper-2'
                 }`}
               >
-                {mode === value && (
-                  <motion.div
-                    layoutId="mode-bg"
-                    className="absolute inset-0 bg-white/10 rounded-lg"
-                    initial={false}
-                    transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                  />
-                )}
-                <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 relative z-10" aria-hidden="true" />
-                <span className="relative z-10 hidden sm:inline">{label}</span>
-                <span className="relative z-10 sm:hidden">{short}</span>
-              </motion.button>
+                {label}
+              </button>
             ))}
-          </nav>
+          </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
-          <div className="flex items-center">
-            <label
-              htmlFor={IMPORT_INPUT_ID}
-              className="flex items-center gap-2 px-2.5 lg:px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10 cursor-pointer"
-              title="Import"
-            >
-              <Upload className="w-3.5 h-3.5" aria-hidden="true" />
-              <span className="hidden lg:inline">Import</span>
-            </label>
-            <button
-              onClick={() => setDialog('import-help')}
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all"
-              aria-label="Show import format help"
-            >
-              <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-          </div>
-
+        <nav className="hidden md:flex items-center gap-1" aria-label="Acciones del proyecto">
+          <span className="hidden xl:inline text-[12px] text-ink-3 mr-2">Se guarda en este navegador</span>
           {actions.map(({ label, icon: Icon, run }) => (
-            <motion.button
-              key={label}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={run}
-              className="flex items-center gap-2 px-2.5 lg:px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all border border-transparent hover:border-white/10"
-              aria-label={label}
-              title={label}
-            >
-              <Icon className="w-3.5 h-3.5" aria-hidden="true" />
-              {label !== 'Reset' && <span className="hidden lg:inline">{label}</span>}
-            </motion.button>
+            <button key={label} onClick={run} className={ghost} title={label}>
+              <Icon className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+              <span className="hidden lg:inline">{label}</span>
+              <span className="sr-only lg:hidden">{label}</span>
+            </button>
           ))}
+          <label htmlFor={IMPORT_INPUT_ID} className={ghost} title="Importar un proyecto JSON">
+            <Upload className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            <span className="hidden lg:inline">Importar</span>
+            <span className="sr-only lg:hidden">Importar</span>
+          </label>
+          <button onClick={() => setDialog('import-help')} className={ghost} aria-label="Formato para importar">
+            <CircleHelp className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <span className="w-px h-5 bg-rule mx-1" aria-hidden="true" />
+          <button onClick={() => setDialog('reset')} className={ghost} title="Volver al ejemplo">
+            <RotateCcw className="w-4 h-4" strokeWidth={1.75} aria-hidden="true" />
+            <span className="sr-only">Volver al ejemplo</span>
+          </button>
+        </nav>
 
-          <div className="h-6 w-px bg-white/10 mx-2" aria-hidden="true" />
+        <button
+          onClick={() => setShowMobileMenu(true)}
+          className="md:hidden p-2 -mr-1 rounded-[2px] text-ink hover:bg-paper-2"
+          aria-label="Abrir el menú"
+          aria-expanded={showMobileMenu}
+        >
+          <Menu className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </header>
 
-          <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleSave}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                hasUnsavedChanges ? 'bg-amber-500 text-white' : 'bg-white/10 text-white hover:bg-white/15'
-              }`}
-              aria-label={hasUnsavedChanges ? 'Save unsaved changes' : 'Project saved'}
-            >
-              <Save className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{hasUnsavedChanges ? 'Save' : 'Saved'}</span>
-            </motion.button>
-            {!hasUnsavedChanges && lastSaved && (
-              <span className="hidden xl:inline text-[10px] text-slate-500">
-                {formatLastSaved(lastSaved)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="flex md:hidden items-center gap-2">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSave}
-            className={`p-2 rounded-lg ${hasUnsavedChanges ? 'bg-amber-500 text-white' : 'bg-white/10 text-white'}`}
-            aria-label={hasUnsavedChanges ? 'Save unsaved changes' : 'Project saved'}
-          >
-            <Save className="w-4 h-4" aria-hidden="true" />
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowMobileMenu(true)}
-            className="p-2 rounded-lg bg-white/5 text-slate-300 hover:text-white"
-            aria-label="Open menu"
-            aria-expanded={showMobileMenu}
-          >
-            <Menu className="w-5 h-5" aria-hidden="true" />
-          </motion.button>
-        </div>
-      </motion.header>
-
-      <AnimatePresence>
-        {showMobileMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-100 md:hidden"
-            onClick={() => setShowMobileMenu(false)}
+      {showMobileMenu && (
+        <div className="fixed inset-0 bg-ink/40 z-100 md:hidden" onClick={() => setShowMobileMenu(false)}>
+          <div
+            className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-paper border-l border-ink flex flex-col"
+            onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Menu"
+            aria-label="Menú"
           >
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="absolute right-0 top-0 bottom-0 w-72 bg-slate-900 border-l border-white/10 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <span className="text-sm font-semibold text-white">Menu</span>
+            <div className="flex items-center justify-between h-14 px-4 border-b border-rule">
+              <span className="font-extrabold">Proyecto</span>
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="p-2 -mr-2 rounded-[2px] text-ink-2 hover:text-ink"
+                aria-label="Cerrar el menú"
+                autoFocus
+              >
+                <X className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="p-2 flex flex-col">
+              {actions.map(({ label, icon: Icon, run }) => (
                 <button
-                  onClick={() => setShowMobileMenu(false)}
-                  className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white"
-                  aria-label="Close menu"
-                >
-                  <X className="w-5 h-5" aria-hidden="true" />
-                </button>
-              </div>
-
-              <div className="p-4 border-b border-white/10">
-                {hasUnsavedChanges ? (
-                  <div className="flex items-center gap-2 text-amber-400 text-sm">
-                    <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-                    Unsaved changes
-                  </div>
-                ) : (
-                  <div className="text-slate-500 text-sm">{formatLastSaved(lastSaved)}</div>
-                )}
-              </div>
-
-              <div className="p-2 space-y-1">
-                <label
-                  htmlFor={IMPORT_INPUT_ID}
-                  onClick={() => setShowMobileMenu(false)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-left cursor-pointer"
-                >
-                  <Upload className="w-5 h-5" aria-hidden="true" />
-                  <span>Import</span>
-                </label>
-
-                {actions.map(({ label, icon: Icon, run }) => (
-                  <button
-                    key={label}
-                    onClick={() => {
-                      setShowMobileMenu(false);
-                      run();
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-left"
-                  >
-                    <Icon className="w-5 h-5" aria-hidden="true" />
-                    <span>{label}</span>
-                  </button>
-                ))}
-
-                <button
+                  key={label}
                   onClick={() => {
                     setShowMobileMenu(false);
-                    setDialog('import-help');
+                    run();
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors text-left"
+                  className="flex items-center gap-3 px-3 py-3 rounded-[2px] text-left hover:bg-paper-2"
                 >
-                  <HelpCircle className="w-5 h-5" aria-hidden="true" />
-                  <span>Import format help</span>
+                  <Icon className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+                  {label}
                 </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))}
+              <label
+                htmlFor={IMPORT_INPUT_ID}
+                onClick={() => setShowMobileMenu(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-[2px] hover:bg-paper-2"
+              >
+                <Upload className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+                Importar
+              </label>
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  setDialog('import-help');
+                }}
+                className="flex items-center gap-3 px-3 py-3 rounded-[2px] text-left hover:bg-paper-2"
+              >
+                <CircleHelp className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+                Formato para importar
+              </button>
+              <button
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  setDialog('reset');
+                }}
+                className="flex items-center gap-3 px-3 py-3 rounded-[2px] text-left text-danger hover:bg-danger-tint"
+              >
+                <RotateCcw className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+                Volver al ejemplo
+              </button>
+            </div>
+            <p className="mt-auto p-4 text-[12px] text-ink-3 border-t border-rule">
+              El proyecto se guarda solo en este navegador. Exporta el JSON para llevarlo a otro lado.
+            </p>
+          </div>
+        </div>
+      )}
 
-      <div className="fixed top-20 right-6 z-100 flex flex-col gap-2" role="status" aria-live="polite">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, x: 100, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 100, scale: 0.9 }}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-lg ${
-                toast.type === 'success'
-                  ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
-                  : toast.type === 'error'
-                    ? 'bg-red-500/20 border-red-500/30 text-red-300'
-                    : 'bg-slate-800/80 border-white/10 text-slate-300'
-              }`}
-            >
-              {toast.type === 'success' && <Check className="w-4 h-4" aria-hidden="true" />}
-              {toast.type === 'error' && <AlertCircle className="w-4 h-4" aria-hidden="true" />}
-              <span className="text-sm font-medium">{toast.message}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+      <div
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-110 flex flex-col items-center gap-2 w-[min(92vw,420px)] pointer-events-none"
+        role="status"
+        aria-live="polite"
+      >
+        {toasts.map((toast) => (
+          <p
+            key={toast.id}
+            className={`w-full text-center px-4 py-2.5 rounded-[2px] text-sm font-semibold animate-[fade_150ms_ease-out] ${
+              toast.type === 'error' ? 'bg-danger text-paper' : 'bg-ink text-paper'
+            }`}
+          >
+            {toast.message}
+          </p>
+        ))}
       </div>
 
-      <AnimatePresence>
-        {dialog === 'import-help' && (
-          <ImportHelpModal onClose={() => setDialog(null)} onDownloadExample={handleExport} />
-        )}
-        {dialog === 'reset' && (
-          <ResetConfirmModal
-            onClose={() => setDialog(null)}
-            onConfirm={() => {
-              resetToDefault();
-              setDialog(null);
-              showToast('Project reset to default', 'info');
-            }}
-          />
-        )}
-        {dialog === 'examples' && (
-          <ExamplesModal
-            onClose={() => setDialog(null)}
-            hasUnsavedChanges={hasUnsavedChanges}
-            onPick={(example) => {
-              loadExample(example.chapters, example.mapStyle, example.name);
-              showToast(`Loaded: ${example.name}`, 'success');
-            }}
-          />
-        )}
-        {dialog === 'embed' && (
-          <EmbedModal
-            onClose={() => setDialog(null)}
-            sceneCount={chapters.length}
-            embedUrl={embedUrl}
-            embedCode={embedCode}
-            droppedLayers={embed.droppedLayers.map((l) => l.name)}
-          />
-        )}
-      </AnimatePresence>
+      {dialog === 'import-help' && (
+        <ImportHelpModal onClose={() => setDialog(null)} onDownloadExample={handleExport} />
+      )}
+      {dialog === 'reset' && (
+        <ResetConfirmModal
+          onClose={() => setDialog(null)}
+          onConfirm={() => {
+            resetToDefault();
+            setDialog(null);
+            showToast('Volviste al proyecto de ejemplo');
+          }}
+        />
+      )}
+      {dialog === 'examples' && (
+        <ExamplesModal
+          onClose={() => setDialog(null)}
+          onPick={(example) => {
+            loadExample(example.chapters, example.mapStyle, example.name);
+            showToast(`Cargado: ${example.name}`);
+          }}
+        />
+      )}
+      {dialog === 'embed' && embed && (
+        <EmbedModal
+          onClose={() => setDialog(null)}
+          sceneCount={chapters.length}
+          embedUrl={embedUrl}
+          embedCode={embedCode}
+          droppedLayers={embed.droppedLayers.map((l) => l.name)}
+        />
+      )}
     </>
   );
 }

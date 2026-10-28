@@ -2,331 +2,155 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useStoryStore } from '@/store/useStoryStore';
-import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MapPin, Home } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import SceneCard from './SceneCard';
+
+/** Keys belong to whatever field or dialog has focus, not to the story. */
+const typingOrDialog = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  return (
+    !!el &&
+    (el.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) ||
+      !!document.querySelector('[aria-modal="true"]'))
+  );
+};
 
 export default function StoryOverlay() {
   const { chapters, activeChapterId, setActiveChapterId } = useStoryStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const stepRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const activeIndex = chapters.findIndex(c => c.id === activeChapterId);
-  const progress = chapters.length > 1 ? (activeIndex / (chapters.length - 1)) * 100 : 100;
+  const activeIndex = Math.max(
+    0,
+    chapters.findIndex((c) => c.id === activeChapterId)
+  );
 
-  const goToChapter = useCallback((index: number) => {
-    if (index >= 0 && index < chapters.length) {
+  const goToChapter = useCallback(
+    (index: number) => {
       const chapter = chapters[index];
+      if (!chapter) return;
       setActiveChapterId(chapter.id);
-      const el = stepRefs.current[chapter.id];
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [chapters, setActiveChapterId]);
-
-  const goToPrev = useCallback(() => {
-    if (activeIndex > 0) {
-      goToChapter(activeIndex - 1);
-    }
-  }, [activeIndex, goToChapter]);
-
-  const goToNext = useCallback(() => {
-    if (activeIndex < chapters.length - 1) {
-      goToChapter(activeIndex + 1);
-    }
-  }, [activeIndex, chapters.length, goToChapter]);
-
-  const goToStart = useCallback(() => {
-    goToChapter(0);
-    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [goToChapter]);
+      stepRefs.current[chapter.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+    [chapters, setActiveChapterId]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') {
-        e.preventDefault();
-        goToNext();
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') {
-        e.preventDefault();
-        goToPrev();
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        goToStart();
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        goToChapter(chapters.length - 1);
-      } else if (e.key >= '1' && e.key <= '9') {
-        const index = parseInt(e.key) - 1;
-        if (index < chapters.length) {
-          e.preventDefault();
-          goToChapter(index);
-        }
-      }
+      if (typingOrDialog(e.target)) return;
+      let next: number | null = null;
+      if (['ArrowDown', 'ArrowRight', 'j', 'PageDown'].includes(e.key)) next = activeIndex + 1;
+      else if (['ArrowUp', 'ArrowLeft', 'k', 'PageUp'].includes(e.key)) next = activeIndex - 1;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = chapters.length - 1;
+      else if (e.key >= '1' && e.key <= '9') next = parseInt(e.key, 10) - 1;
+      if (next === null || next < 0 || next >= chapters.length) return;
+      e.preventDefault();
+      goToChapter(next);
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goToNext, goToPrev, goToStart, goToChapter, chapters.length]);
+  }, [activeIndex, chapters.length, goToChapter]);
 
   useEffect(() => {
-    const options = {
-      root: null,
-      rootMargin: '-50% 0px -50% 0px',
-      threshold: 0
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
           const id = entry.target.getAttribute('data-id');
           if (id) setActiveChapterId(id);
         }
-      });
-    }, options);
-
-    Object.values(stepRefs.current).forEach((el) => {
-      if (el) observer.observe(el);
-    });
-
+      },
+      { root: containerRef.current, rootMargin: '-50% 0px -50% 0px', threshold: 0 }
+    );
+    Object.values(stepRefs.current).forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
   }, [chapters, setActiveChapterId]);
 
+  const navBtn =
+    'w-10 h-10 flex items-center justify-center rounded-[2px] text-ink hover:bg-paper-2 disabled:text-ink-3 disabled:hover:bg-transparent disabled:cursor-not-allowed';
+
   return (
     <>
-      {/* La landing oscurece el mapa entero porque ahí es decorado. Aquí el
-          mapa es el contenido, así que solo se atenúa la banda donde va el
-          texto y los bordes donde viven los controles. */}
+      {/* The overlay takes the scroll everywhere, so the wheel advances the
+          story instead of zooming the map. Preview reads like the embed. */}
       <div
-        className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-r from-slate-950/85 via-slate-950/25 to-transparent sm:to-transparent"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-x-0 bottom-0 h-40 z-20 pointer-events-none bg-gradient-to-t from-slate-950/80 to-transparent"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-x-0 top-0 h-24 z-20 pointer-events-none bg-gradient-to-b from-slate-950/60 to-transparent"
-        aria-hidden="true"
-      />
-
-    <motion.div
-      ref={containerRef}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="absolute inset-0 z-30 pointer-events-none overflow-y-auto scroll-smooth snap-y snap-mandatory"
-      style={{ scrollBehavior: 'smooth' }}
-      role="region"
-      aria-label="Story presentation"
-    >
-      <div className="fixed top-16 left-0 right-0 z-50 pointer-events-none">
-        <div className="h-1 bg-white/10">
-          <motion.div
-            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ type: 'spring', damping: 30, stiffness: 200 }}
-          />
-        </div>
-      </div>
-
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex items-center gap-2 bg-black/70 backdrop-blur-xl rounded-2xl p-2 border border-white/10 shadow-2xl"
-        >
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={goToStart}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-            aria-label="Go to beginning"
-          >
-            <Home className="w-4 h-4" aria-hidden="true" />
-          </motion.button>
-
-          <div className="h-6 w-px bg-white/10" aria-hidden="true" />
-
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={goToPrev}
-            disabled={activeIndex === 0}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Previous scene"
-          >
-            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-          </motion.button>
-
-          <div className="px-4 py-2 min-w-[100px] text-center">
-            <div className="text-sm font-bold text-white">
-              {activeIndex + 1} <span className="text-slate-500 font-normal">of</span> {chapters.length}
-            </div>
-            <div className="text-[10px] text-slate-500 truncate max-w-[120px]">
-              {chapters[activeIndex]?.title}
-            </div>
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={goToNext}
-            disabled={activeIndex === chapters.length - 1}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Next scene"
-          >
-            <ChevronRight className="w-5 h-5" aria-hidden="true" />
-          </motion.button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2 }}
-          className="text-center mt-2"
-        >
-          <span className="text-[10px] text-slate-600">
-            Use <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-slate-400">←</kbd> <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-slate-400">→</kbd> or scroll
-          </span>
-        </motion.div>
-      </div>
-
-      <div className="h-[50vh] flex items-end justify-center pb-16 pointer-events-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1, duration: 0.8 }}
-          className="flex flex-col items-center gap-3"
-        >
-          <span className="text-sm text-slate-400 font-light tracking-wider">Scroll to explore</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <ChevronDown className="w-6 h-6 text-slate-500" aria-hidden="true" />
-          </motion.div>
-        </motion.div>
-      </div>
-
-      {chapters.map((chapter, index) => {
-        const isActive = activeChapterId === chapter.id;
-
-        return (
+        ref={containerRef}
+        className="absolute inset-0 z-30 overflow-y-auto overscroll-contain snap-y snap-proximity"
+        role="region"
+        aria-label="Vista previa de la historia"
+      >
+        <div className="h-[45dvh]" aria-hidden="true" />
+        {chapters.map((chapter, index) => (
           <article
             key={chapter.id}
             data-id={chapter.id}
-            ref={el => { stepRefs.current[chapter.id] = el; }}
-            className="min-h-screen flex items-center justify-start px-4 sm:px-8 md:px-16 lg:px-24 snap-center"
-            aria-label={`Scene ${index + 1}: ${chapter.title}`}
+            ref={(el) => {
+              stepRefs.current[chapter.id] = el;
+            }}
+            className="min-h-dvh flex items-end sm:items-center px-3 sm:px-8 lg:px-16 pb-24 sm:pb-0 snap-center"
+            aria-label={`Escena ${index + 1} de ${chapters.length}`}
           >
-            <motion.div
-              initial={{ opacity: 0, x: -50, filter: 'blur(10px)' }}
-              whileInView={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-              viewport={{ once: false, margin: '-30%' }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="pointer-events-auto max-w-md w-full"
-            >
-              <div
-                className={`relative bg-black/75 backdrop-blur-xl rounded-2xl overflow-hidden border transition-colors duration-500 ${
-                  isActive ? 'border-white/25' : 'border-white/10'
-                }`}
-              >
-
-
-                  <div className="p-6 sm:p-7">
-                    <div className="flex items-center gap-3 mb-4 sm:mb-6">
-                      <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30">
-                        <span className="text-xs font-bold text-indigo-400" aria-hidden="true">{index + 1}</span>
-                      </div>
-                      {chapter.pitch > 10 && (
-                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider px-2 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                          3D View
-                        </span>
-                      )}
-                    </div>
-
-                    <h2
-                      className="text-2xl sm:text-3xl font-bold mb-3 text-white tracking-tight"
-                      style={{
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                        letterSpacing: '-0.02em'
-                      }}
-                    >
-                      {chapter.title}
-                    </h2>
-
-                    <p className="text-[15px] text-slate-300 leading-relaxed">
-                      {chapter.content}
-                    </p>
-
-                    <div className="mt-4 sm:mt-6 flex items-center gap-2 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span className="font-mono">
-                        {chapter.latitude.toFixed(4)}°, {chapter.longitude.toFixed(4)}°
-                      </span>
-                    </div>
-                  </div>
-              </div>
-            </motion.div>
+            <SceneCard chapter={chapter} index={index} total={chapters.length} active={index === activeIndex} />
           </article>
-        );
-      })}
-
-      <div className="h-[50vh] flex items-center justify-center pointer-events-auto pb-24">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          className="text-center"
-        >
-          <p className="text-sm text-slate-500 mb-2">End of story</p>
+        ))}
+        <div className="h-[60dvh] flex items-start justify-center pt-10">
           <button
-            onClick={goToStart}
-            className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors flex items-center gap-1 mx-auto"
-            aria-label="Return to beginning of story"
+            onClick={() => {
+              goToChapter(0);
+              containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="bg-paper border border-ink rounded-[2px] px-4 py-2 text-sm font-semibold hover:bg-paper-2"
           >
-            <ChevronUp className="w-4 h-4" aria-hidden="true" />
-            Back to start
+            Fin. Volver a la escena 1
           </button>
-        </motion.div>
+        </div>
       </div>
 
       <nav
-        className="fixed right-4 sm:right-8 top-1/2 -translate-y-1/2 z-40 pointer-events-auto hidden sm:block"
-        aria-label="Scene navigation"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-40 hidden sm:flex flex-col gap-1.5"
+        aria-label="Escenas"
       >
-        <div className="flex flex-col gap-2 sm:gap-3">
-          {chapters.map((chapter, index) => {
-            const isActive = activeChapterId === chapter.id;
-            return (
-              <motion.button
-                key={chapter.id}
-                onClick={() => goToChapter(index)}
-                className="group relative"
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label={`Go to scene ${index + 1}: ${chapter.title}`}
-                aria-current={isActive ? 'step' : undefined}
-              >
-                <motion.div
-                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 ${
-                    isActive
-                      ? 'bg-indigo-500 shadow-lg shadow-indigo-500/50'
-                      : 'bg-white/20 hover:bg-white/40'
-                  }`}
-                  animate={{ scale: isActive ? 1.3 : 1 }}
-                />
-
-                <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <div className="bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap border border-white/10">
-                    {chapter.title}
-                  </div>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
+        {chapters.map((chapter, index) => {
+          const on = index === activeIndex;
+          return (
+            <button
+              key={chapter.id}
+              onClick={() => goToChapter(index)}
+              aria-label={`Ir a la escena ${index + 1}: ${chapter.title || 'Sin título'}`}
+              aria-current={on ? 'step' : undefined}
+              className={`w-7 h-7 rounded-full border-2 font-mono text-[11px] font-semibold flex items-center justify-center ${
+                on ? 'bg-contour border-paper text-paper' : 'bg-paper border-ink text-ink hover:bg-paper-2'
+              }`}
+            >
+              {index + 1}
+            </button>
+          );
+        })}
       </nav>
-    </motion.div>
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center bg-paper border border-ink rounded-[2px]">
+        <button
+          onClick={() => goToChapter(activeIndex - 1)}
+          disabled={activeIndex === 0}
+          className={navBtn}
+          aria-label="Escena anterior"
+        >
+          <ChevronLeft className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+        <p className="px-3 font-mono text-[13px] tabular" aria-live="polite">
+          {activeIndex + 1} de {chapters.length}
+        </p>
+        <button
+          onClick={() => goToChapter(activeIndex + 1)}
+          disabled={activeIndex === chapters.length - 1}
+          className={navBtn}
+          aria-label="Escena siguiente"
+        >
+          <ChevronRight className="w-5 h-5" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
     </>
   );
 }

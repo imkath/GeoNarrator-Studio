@@ -1,173 +1,142 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 
-
-export const alt = 'GeoNarrator Studio - 3D Scrollytelling Map Editor';
-export const size = {
-  width: 1200,
-  height: 630,
-};
+export const alt = 'GeoNarrator Studio: historias que se leen sobre un mapa';
+export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
+const INK = '#14181d';
+const INK2 = '#47505a';
+const CONTOUR = '#a8561c';
+
+// Rendered once at build time, so the fonts come straight from the repo.
+const font = (file: string) => readFile(join(process.cwd(), 'src/assets', file));
+
+function Station({ x, y, n, active = false }: { x: number; y: number; n: number; active?: boolean }) {
+  const r = active ? 26 : 20;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x - r,
+        top: y - r,
+        width: r * 2,
+        height: r * 2,
+        borderRadius: r,
+        border: `4px solid ${active ? '#ffffff' : INK}`,
+        background: active ? CONTOUR : '#ffffff',
+        color: active ? '#ffffff' : INK,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'Overpass Mono',
+        fontSize: active ? 24 : 20,
+      }}
+    >
+      {n}
+    </div>
+  );
+}
+
 export default async function Image() {
+  const [extraBold, regular, mono] = await Promise.all([
+    font('overpass-800.ttf'),
+    font('overpass-400.ttf'),
+    font('overpass-mono-400.ttf'),
+  ]);
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#020617',
-          backgroundImage: 'radial-gradient(circle at 25% 25%, #1e1b4b 0%, transparent 50%), radial-gradient(circle at 75% 75%, #312e81 0%, transparent 50%)',
-        }}
-      >
+      <div style={{ width: '100%', height: '100%', display: 'flex', background: '#ffffff', padding: 36 }}>
         <div
           style={{
+            position: 'relative',
+            flex: 1,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 40,
+            border: `3px solid ${INK}`,
+            padding: '56px 60px',
+            flexDirection: 'column',
           }}
         >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+              <circle cx="5" cy="18.5" r="2.5" fill={INK} />
+              <path d="M6.6 16.4C8.4 10.6 12.2 7.6 15.6 7.4" stroke={INK} strokeWidth="1.9" strokeLinecap="round" />
+              <circle cx="18.6" cy="7.4" r="3.1" stroke={CONTOUR} strokeWidth="1.9" />
+              <circle cx="18.6" cy="7.4" r="0.9" fill={CONTOUR} />
+            </svg>
+            <span style={{ fontFamily: 'Overpass', fontWeight: 800, fontSize: 34, color: INK, letterSpacing: -0.5 }}>
+              GeoNarrator
+            </span>
+            <span style={{ fontFamily: 'Overpass Mono', fontSize: 22, color: INK2, marginTop: 6 }}>studio</span>
+          </div>
+
+          <div
+            style={{
+              marginTop: 70,
+              width: 640,
+              fontFamily: 'Overpass',
+              fontWeight: 800,
+              fontSize: 76,
+              lineHeight: 1,
+              letterSpacing: -2.5,
+              color: INK,
+            }}
+          >
+            Historias que se leen sobre un mapa
+          </div>
+          <div style={{ marginTop: 28, width: 600, fontFamily: 'Overpass', fontSize: 28, lineHeight: 1.35, color: INK2 }}>
+            Cada escena guarda un texto y un encuadre. Al hacer scroll, el mapa vuela de una a otra.
+          </div>
+
+          {/* Three stations and the flight between them. */}
           <svg
-            width="120"
-            height="120"
-            viewBox="0 0 24 24"
+            width="400"
+            height="420"
+            viewBox="0 0 400 420"
+            style={{ position: 'absolute', right: 40, top: 70 }}
             fill="none"
           >
-            <defs>
-              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#818cf8" />
-                <stop offset="50%" stopColor="#a78bfa" />
-                <stop offset="100%" stopColor="#f472b6" />
-              </linearGradient>
-            </defs>
-            <circle cx="12" cy="12" r="10" stroke="url(#grad)" strokeWidth="1.5" fill="none" />
-            <ellipse cx="12" cy="12" rx="10" ry="4" stroke="url(#grad)" strokeWidth="1.5" fill="none" />
-            <path d="M12 2C14.5 2 16.5 6.5 16.5 12C16.5 17.5 14.5 22 12 22C9.5 22 7.5 17.5 7.5 12C7.5 6.5 9.5 2 12 2Z" stroke="url(#grad)" strokeWidth="1.5" fill="none" />
-            <circle cx="15" cy="8" r="2" fill="#f472b6" />
-            <circle cx="15" cy="8" r="1" fill="white" />
+            <path d="M70 360 C 90 250, 150 200, 210 190" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+            <path
+              d="M210 190 C 270 180, 320 120, 330 60"
+              stroke={INK}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="2 12"
+            />
           </svg>
-        </div>
+          <Station x={682 + 70} y={70 + 360} n={1} />
+          <Station x={682 + 210} y={70 + 190} n={2} active />
+          <Station x={682 + 330} y={70 + 60} n={3} />
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 8,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 72,
-              fontWeight: 900,
-              color: 'white',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Geo
-          </span>
-          <span
-            style={{
-              fontSize: 72,
-              fontWeight: 300,
-              color: 'rgba(255,255,255,0.9)',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Narrator
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            marginTop: 16,
-          }}
-        >
           <div
             style={{
-              width: 40,
-              height: 2,
-              background: 'linear-gradient(90deg, #6366f1, transparent)',
-            }}
-          />
-          <span
-            style={{
+              position: 'absolute',
+              left: 60,
+              bottom: 26,
+              right: 60,
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontFamily: 'Overpass Mono',
               fontSize: 20,
-              fontWeight: 600,
-              color: '#94a3b8',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
+              color: INK2,
             }}
           >
-            Story Studio
-          </span>
-          <div
-            style={{
-              width: 40,
-              height: 2,
-              background: 'linear-gradient(90deg, transparent, #6366f1)',
-            }}
-          />
+            <span>33°26′S 70°39′O</span>
+            <span>geonarrator.nvrkth.com</span>
+          </div>
         </div>
-
-        <p
-          style={{
-            fontSize: 28,
-            color: '#64748b',
-            marginTop: 40,
-            textAlign: 'center',
-            maxWidth: 800,
-            lineHeight: 1.4,
-          }}
-        >
-          Create stunning 3D map-based stories without writing code
-        </p>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 32,
-            marginTop: 40,
-          }}
-        >
-          {['3D Maps', 'No-Code', 'Scrollytelling', 'Cinematic'].map((feature) => (
-            <div
-              key={feature}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 24px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              <span style={{ fontSize: 18, color: '#e2e8f0' }}>{feature}</span>
-            </div>
-          ))}
-        </div>
-
-        <p
-          style={{
-            position: 'absolute',
-            bottom: 40,
-            fontSize: 18,
-            color: '#475569',
-          }}
-        >
-          geonarrator.studio
-        </p>
       </div>
     ),
     {
       ...size,
+      fonts: [
+        { name: 'Overpass', data: extraBold, weight: 800, style: 'normal' },
+        { name: 'Overpass', data: regular, weight: 400, style: 'normal' },
+        { name: 'Overpass Mono', data: mono, weight: 400, style: 'normal' },
+      ],
     }
   );
 }

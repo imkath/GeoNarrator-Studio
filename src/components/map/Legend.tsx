@@ -1,56 +1,59 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import type { DataLayer } from '@/types';
 
 const compact = (value: number) =>
-  new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  new Intl.NumberFormat('es-CL', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
 /**
  * Reads the styles rather than describing them: a layer coloured by a property
  * shows its ramp and the two ends of the range, a flat one shows its swatch.
+ * Sits above the Mapbox logo, which has to stay visible.
  */
-export default function Legend({ layers }: { layers: DataLayer[] }) {
+export default function Legend({
+  layers,
+  className = 'absolute bottom-10 left-3 z-10',
+}: {
+  layers: DataLayer[];
+  className?: string;
+}) {
   if (layers.length === 0) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="absolute bottom-6 left-6 z-10 max-w-[240px] bg-black/70 backdrop-blur-md border border-white/10 rounded-xl p-3 space-y-3"
-      aria-label="Layer legend"
+    <section
+      className={`${className} w-[176px] sm:w-[220px] bg-paper border border-ink rounded-[4px] px-2.5 py-2 sm:px-3 sm:py-2.5 space-y-2 sm:space-y-2.5`}
+      aria-label="Leyenda"
     >
+      <h2 className="font-mono text-[10px] text-ink-3">Leyenda</h2>
       {layers.map((layer) => (
         <div key={layer.id}>
-          <p className="text-[11px] font-semibold text-white truncate">{layer.name}</p>
+          <p className="text-[13px] font-semibold leading-tight truncate">{layer.name}</p>
 
           {layer.style.property && layer.style.range ? (
             <>
-              <p className="text-[9px] text-slate-400 mb-1 truncate">{layer.style.property}</p>
+              <p className="text-[11px] text-ink-2 truncate">según {layer.style.property}</p>
               <div
-                className="h-2 rounded-full"
+                className="h-2 mt-1"
                 style={{
                   background: `linear-gradient(to right, ${layer.style.rampFrom}, ${layer.style.rampTo})`,
                 }}
               />
-              <div className="flex justify-between text-[9px] text-slate-400 mt-0.5 font-mono">
+              <div className="flex justify-between font-mono text-[10px] text-ink-2 mt-0.5">
                 <span>{compact(layer.style.range.min)}</span>
                 <span>{compact(layer.style.range.max)}</span>
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-1">
               <span
-                className="w-3 h-3 rounded-sm shrink-0"
-                style={{ backgroundColor: layer.style.color, opacity: layer.style.opacity }}
+                className="w-3 h-3 shrink-0 border border-ink/20"
+                style={{ backgroundColor: layer.style.color, opacity: Math.max(0.35, layer.style.opacity) }}
               />
-              <span className="text-[9px] text-slate-400">
-                {layer.featureCount.toLocaleString()} features
+              <span className="font-mono text-[10px] text-ink-2">
+                {layer.featureCount.toLocaleString('es-CL')} elementos
               </span>
             </div>
           )}
         </div>
       ))}
-    </motion.div>
+    </section>
   );
 }
