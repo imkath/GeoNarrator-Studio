@@ -113,8 +113,10 @@ Tres salidas, según lo que se necesite:
 | Proyectos de ejemplo cargables | hecho |
 | Cargar un GeoJSON propio y pintarlo sobre el mapa | hecho |
 | Control de capas y leyenda | hecho |
-| Recuperación ante errores en todos los caminos | pendiente |
-| Accesibilidad por teclado y lector de pantalla | pendiente |
+| Recuperación ante errores en todos los caminos | hecho: import, embed y capas validados; mapa y almacenamiento avisan al fallar |
+| Accesibilidad por teclado y lector de pantalla | hecho en lo básico: diálogos con foco atrapado, buscador como combobox, reordenar con teclado; falta una auditoría con lector real |
+| Interfaz en español y marca propia | hecho, ver `DESIGN.md` |
+| GeoJSON grande sin congelar la interfaz | hecho: se lee en un Web Worker |
 
 ### Fuera, y por qué
 
