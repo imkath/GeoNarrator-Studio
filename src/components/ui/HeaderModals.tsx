@@ -169,8 +169,8 @@ export function EmbedModal({
         {droppedLayers.length > 0 && (
           <p className="text-[13px] bg-caution-tint text-caution rounded-[2px] px-3 py-2" role="alert">
             {droppedLayers.length === 1 ? 'La capa' : 'Las capas'} {droppedLayers.join(', ')} no{' '}
-            {droppedLayers.length === 1 ? 'cabe' : 'caben'} en un enlace y quedaron fuera. Para compartirlas,
-            exporta el proyecto como JSON.
+            {droppedLayers.length === 1 ? 'cabe' : 'caben'} en un enlace y {droppedLayers.length === 1 ? 'quedó' : 'quedaron'} fuera. Para{' '}
+            {droppedLayers.length === 1 ? 'compartirla' : 'compartirlas'}, exporta el proyecto como JSON.
           </p>
         )}
 

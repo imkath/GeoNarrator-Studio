@@ -8,21 +8,21 @@ import type { DataLayer } from '@/types';
 
 /**
  * Flat colours and ramps taken from topographic map conventions: water,
- * contour, vegetation, road, lettering. Ramps run light to dark so the low
- * end of a value reads as "less" on any base map.
+ * contour, vegetation, road, lettering, lifted to read over satellite and
+ * dark styles. Ramps run dim to bright, so a high value is what stands out.
  */
 const PALETTE = [
-  { color: '#1a5c96', name: 'azul' },
-  { color: '#a8561c', name: 'siena' },
-  { color: '#2f7d4f', name: 'verde' },
-  { color: '#c0392b', name: 'rojo' },
-  { color: '#14181d', name: 'negro' },
+  { color: '#7fb2e0', name: 'azul' },
+  { color: '#d98a45', name: 'siena' },
+  { color: '#6fcf8e', name: 'verde' },
+  { color: '#ff7a6b', name: 'rojo' },
+  { color: '#eef0f2', name: 'blanco' },
 ];
 const RAMPS: [string, string][] = [
-  ['#d3e4f2', '#0d3d66'],
-  ['#f6e2c6', '#7a3a0c'],
-  ['#d9eedd', '#1d5a35'],
-  ['#f6d5cf', '#7d1d12'],
+  ['#24527d', '#d6eaf9'],
+  ['#7a3a0c', '#ffd8a8'],
+  ['#1d5a35', '#cdf0d8'],
+  ['#7d1d12', '#ffcbc2'],
 ];
 
 /** Beyond this the browser starts to feel it; the panel says so up front. */
