@@ -2,20 +2,23 @@
 
 /* Tokens por rol. El razonamiento de cada uno está en DESIGN.md. */
 :root {
-  --paper: #ffffff;
-  --paper-2: #f1f3f5;
-  --ink: #14181d;
-  --ink-2: #47505a;
-  --ink-3: #646d77;
-  --rule: #d6dbe0;
-  --water: #1a5c96;
-  --water-strong: #134a7a;
-  --water-tint: #e8f0f7;
-  --contour: #a8561c;
-  --danger: #b42318;
-  --danger-tint: #fdecea;
-  --caution: #7a4f00;
-  --caution-tint: #fff6e0;
+  /* Night sheet: the map carries the colour, the chrome stays near-black
+     with a hint of blue, never navy. Names keep their print roles. */
+  --paper: #0e1114;
+  --paper-2: #181c21;
+  --ink: #eef0f2;
+  --ink-2: #b6bdc5;
+  --ink-3: #8b939c;
+  --rule: #2a3037;
+  --water: #7fb2e0;
+  --water-strong: #a3c8ea;
+  --water-tint: #15263a;
+  --contour: #d98a45;
+  --danger: #ff7a6b;
+  --danger-tint: #3a1a16;
+  --caution: #f0b860;
+  --caution-tint: #2f2410;
+  color-scheme: dark;
 }
 
 @theme inline {

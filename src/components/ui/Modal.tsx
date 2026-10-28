@@ -61,7 +61,7 @@ export default function Modal({ title, subtitle, onClose, children, footer, size
 
   return (
     <div
-      className="fixed inset-0 z-100 bg-ink/40 flex items-end sm:items-center justify-center sm:p-4 animate-[fade_150ms_ease-out]"
+      className="fixed inset-0 z-100 bg-black/60 flex items-end sm:items-center justify-center sm:p-4 animate-[fade_150ms_ease-out]"
       onClick={onClose}
     >
       <div

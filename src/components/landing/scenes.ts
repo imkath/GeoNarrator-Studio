@@ -11,7 +11,7 @@ export interface LandingScene extends CameraState {
  * view behind the hero text.
  */
 export const LANDING_SCENES: LandingScene[] = [
-  { id: 'inicio', longitude: -71.2, latitude: -36.5, zoom: 2.4, pitch: 0, bearing: 0 },
+  { id: 'inicio', longitude: -69.5, latitude: -30, zoom: 2.3, pitch: 20, bearing: -10 },
   // Santiago from the west, the cordillera as the back wall.
   { id: 'escena', longitude: -70.69, latitude: -33.47, zoom: 10.4, pitch: 64, bearing: 78 },
   // Osorno volcano over Llanquihue lake.
@@ -35,7 +35,7 @@ export const feriasLayer = (collection: GeoJSON.FeatureCollection): DataLayer =>
     opacity: 0.95,
     property: 'puestos',
     range: { min: 0, max: 911 },
-    rampFrom: '#f2b880',
-    rampTo: '#5c2205',
+    rampFrom: '#fde3c0',
+    rampTo: '#e0601f',
   },
 });

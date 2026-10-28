@@ -22,8 +22,8 @@ const overpassMono = Overpass_Mono({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#ffffff',
-  colorScheme: 'light',
+  themeColor: '#0e1114',
+  colorScheme: 'dark',
 };
 
 export const metadata: Metadata = {

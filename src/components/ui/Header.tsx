@@ -202,7 +202,7 @@ export default function Header() {
       </header>
 
       {showMobileMenu && (
-        <div className="fixed inset-0 bg-ink/40 z-100 md:hidden" onClick={() => setShowMobileMenu(false)}>
+        <div className="fixed inset-0 bg-black/60 z-100 md:hidden" onClick={() => setShowMobileMenu(false)}>
           <div
             className="absolute right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-paper border-l border-ink flex flex-col"
             onClick={(e) => e.stopPropagation()}
