@@ -30,12 +30,12 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new GeoJSONError('The file is not valid JSON');
+    throw new GeoJSONError('El archivo no es un JSON válido.');
   }
 
   const collection = asFeatureCollection(parsed);
   if (collection.features.length === 0) {
-    throw new GeoJSONError('The file has no features');
+    throw new GeoJSONError('El archivo no tiene elementos para dibujar.');
   }
 
   const geometryKinds = new Set<string>();
@@ -46,10 +46,10 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
 
   for (const feature of collection.features) {
     if (!feature.geometry) {
-      throw new GeoJSONError('Some features have no geometry');
+      throw new GeoJSONError('Hay elementos sin geometría.');
     }
     if (!SUPPORTED.has(feature.geometry.type)) {
-      throw new GeoJSONError(`Unsupported geometry: ${feature.geometry.type}`);
+      throw new GeoJSONError(`Tipo de geometría no soportado: ${feature.geometry.type}.`);
     }
     geometryKinds.add(feature.geometry.type);
 
@@ -77,7 +77,7 @@ export function parseGeoJSON(raw: string): ParsedGeoJSON {
 
 function asFeatureCollection(value: unknown): GeoJSON.FeatureCollection {
   if (typeof value !== 'object' || value === null) {
-    throw new GeoJSONError('The file is not a GeoJSON object');
+    throw new GeoJSONError('El archivo no es un objeto GeoJSON.');
   }
   const candidate = value as { type?: unknown; features?: unknown };
 
@@ -86,10 +86,10 @@ function asFeatureCollection(value: unknown): GeoJSON.FeatureCollection {
     return { type: 'FeatureCollection', features: [value as GeoJSON.Feature] };
   }
   if (candidate.type !== 'FeatureCollection') {
-    throw new GeoJSONError('Expected a FeatureCollection or a Feature');
+    throw new GeoJSONError('Se esperaba una FeatureCollection o una Feature.');
   }
   if (!Array.isArray(candidate.features)) {
-    throw new GeoJSONError('The FeatureCollection has no features list');
+    throw new GeoJSONError('La FeatureCollection no tiene una lista de features.');
   }
 
   return value as GeoJSON.FeatureCollection;
@@ -148,7 +148,17 @@ export function colorExpression(style: LayerStyle): string | unknown[] {
   ];
 }
 
-/** Layer size in bytes once serialised, used to warn before embedding. */
+const weights = new WeakMap<object, number>();
+
+/**
+ * Layer size in bytes once serialised, used to warn before embedding. The
+ * panel asks on every render and a collection never changes once loaded, so
+ * the answer is kept per collection instead of re-serialising megabytes.
+ */
 export function layerWeight(layer: DataLayer): number {
-  return new TextEncoder().encode(JSON.stringify(layer.collection)).length;
+  const cached = weights.get(layer.collection);
+  if (cached !== undefined) return cached;
+  const weight = new TextEncoder().encode(JSON.stringify(layer.collection)).length;
+  weights.set(layer.collection, weight);
+  return weight;
 }
